@@ -418,7 +418,7 @@ function buildTasks(pf, agendas) {
     exception: effectiveGsmUnanimous
       ? '상법 §448 서류비치 의무는 소집통지 생략(§363④)과 무관하게 적용. 법문상 "주총 1주 전"이 원칙이나 전원동의 단기 개최 시 실무상 3일 전 비치로 갈음하는 경우 있음 — 법적 리스크 감안 필요.'
       : '',
-    show: isGSM,
+    show: isAGM,   // 재무제표 비치는 정기주총(AGM) 전용 (상법 §448 — 결산 재무제표 승인 안건 시)
   });
 
   T.push({

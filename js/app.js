@@ -213,9 +213,9 @@ function updateMeetingTypeUI() {
     : `${meta.fyLabel} <span class="required">*</span>`;
   document.getElementById('fy-date-hint').textContent = meta.fyHint;
 
-  // Schedule option group visibility
+  // Schedule option group visibility (each shown only for the relevant meeting type)
   document.getElementById('gsm-schedule-group').style.display = isGSM ? '' : 'none';
-  // BOD schedule group always visible
+  document.getElementById('bod-schedule-group').style.display = isBOD ? '' : 'none';
 
   // Reset GSM schedule to 'normal' when switching to BOD (and vice versa keeps state)
   if (isBOD) {
@@ -361,19 +361,16 @@ function initAgenda() {
   // Section visibility
   document.getElementById('agenda-gsm-ordinary-section').style.display = isBOD ? 'none' : '';
   document.getElementById('agenda-gsm-special-section').style.display  = isBOD ? 'none' : '';
-  document.getElementById('agenda-bod-section').style.display = 'block';
+  document.getElementById('agenda-bod-section').style.display           = isBOD ? '' : 'none';
 
   // BOD agendas (always rendered)
   renderCheckboxGroup('agenda-bod', AGENDA_BOD);
 
-  // GSM agendas (filtered for EGM: agmOnly items not forced-checked)
+  // GSM agendas (EGM: agmOnly 항목은 완전히 제외하여 표시하지 않음)
   if (!isBOD) {
-    const ordinaryItems = AGENDA_GSM_ORDINARY.map(item => {
-      if (item.agmOnly && isEGM) {
-        return { ...item, checked: false, always: false };
-      }
-      return item;
-    });
+    const ordinaryItems = isEGM
+      ? AGENDA_GSM_ORDINARY.filter(item => !item.agmOnly)
+      : AGENDA_GSM_ORDINARY;
     renderCheckboxGroup('agenda-gsm-ordinary', ordinaryItems);
     renderCheckboxGroup('agenda-gsm-special', AGENDA_GSM_SPECIAL);
   }
