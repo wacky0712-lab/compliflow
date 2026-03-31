@@ -188,6 +188,14 @@
 <button class="opt-btn" data-value="over2t" onclick="selectOpt(this)">2조 이상</button>
 </div>
 </div>
+<div class="form-group">
+<label>자본금 규모 <span class="required">*</span></label>
+<div class="opt-group" data-field="pf-capital">
+<button class="opt-btn" data-value="small" onclick="selectOpt(this);updateScheduleHints()">10억 미만</button>
+<button class="opt-btn selected" data-value="large" onclick="selectOpt(this);updateScheduleHints()">10억 이상</button>
+</div>
+<div class="form-hint">소집절차 단축·생략 적용 가능 여부 판단에 사용 (상법 §363①·④)</div>
+</div>
 <div class="form-group" id="fy-month-group">
 <label>결산월 <span class="required">*</span></label>
 <div class="opt-group" data-field="pf-fy">
@@ -271,6 +279,7 @@
   <div id="gsm-schedule-hint" class="form-hint" style="line-height:1.5">
     법정 소집통지 기간: 주총일 2주 전 (상법 §363①)
   </div>
+  <div id="gsm-schedule-warn" class="form-hint" style="color:#e53e3e;display:none;margin-top:4px;line-height:1.5"></div>
 </div>
 
 <!-- 이사회 소집기간 (항상 표시) -->

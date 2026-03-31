@@ -244,23 +244,47 @@ function updateMeetingTypeUI() {
 // 소집일정 옵션별 안내 문구 및 UI 업데이트
 const SCHEDULE_HINTS = {
   gsm: {
-    normal:        '법정 소집통지 기간: 주총일 2주 전 (상법 §363①). 상장사는 자본시장법에 의해 2주 단축 불가.',
-    short_charter: '정관으로 10일 전으로 단축 (상법 §363① 단서). 비상장 + 자본금 10억 미만 회사에만 허용.',
-    unanimous:     '주주 전원 동의 시 소집통지 생략 가능 (상법 §363④). 전원 동의서 서면 징구 필요. 소집결정 이사회와 서류비치 의무는 별도 이행 권장.',
+    normal:        '법정 소집통지 기간: 주총일 2주 전 (상법 §363①). 상장사는 자본시장법에 의해 단축 불가.',
+    short_charter: '정관으로 10일 전으로 단축 (상법 §363① 단서). 비상장 + 자본금 10억 미만 회사에만 적용 가능.',
+    unanimous:     '주주 전원의 동의 시 소집절차(통지) 생략 후 즉시 개최 가능 (상법 §363④). 자본금 10억 미만 회사에만 적용. 주주 전원 동의서 서면 징구·보관 필수.',
   },
   bod: {
     normal:        '법정 소집통지 기간: 7일 전 (상법 §390②). 각 이사 및 감사에게 서면·전자 통지.',
     short_charter: '정관으로 7일 미만으로 단축 가능 (상법 §390② 단서). 회사 규모·상장 여부 무관하게 허용. 아래에 정관상 기간을 입력하세요.',
-    unanimous:     '이사 전원의 동의 시 소집절차(통지) 생략 후 즉시 개최 가능 (상법 §390③). 동의 확인 서면 보관 권장.',
+    unanimous:     '이사 전원의 동의 시 소집절차(통지) 생략 후 즉시 개최 가능 (상법 §390③). 회사 규모·상장 여부 무관하게 허용. 동의 확인 서면 보관 권장.',
+  },
+  // 적용 불가 경고 문구
+  gsmWarn: {
+    short_charter_listed:  '⚠ 상장사는 §363① 단서 적용 불가 — 법정 2주 기간 준수 필요.',
+    short_charter_capital: '⚠ 자본금 10억 이상인 경우 §363① 단서 적용 불가 — 법정 2주 기간 준수 필요.',
+    unanimous_capital:     '⚠ §363④는 자본금 총액 10억 미만 회사에만 적용됩니다. 자본금 10억 이상인 경우 이 옵션을 사용할 수 없습니다.',
   },
 };
 
 function updateScheduleHints() {
-  const gsmSched = getOptValue('pf-gsm-schedule') || 'normal';
-  const bodSched = getOptValue('pf-bod-schedule') || 'normal';
+  const gsmSched  = getOptValue('pf-gsm-schedule') || 'normal';
+  const bodSched  = getOptValue('pf-bod-schedule') || 'normal';
+  const listing   = getOptValue('pf-listing') || '';
+  const capital   = getOptValue('pf-capital') || 'large';
+  const isListed  = listing === 'kospi' || listing === 'kosdaq';
+  const capSmall  = capital === 'small';
 
   const gsmHintEl = document.getElementById('gsm-schedule-hint');
   if (gsmHintEl) gsmHintEl.textContent = SCHEDULE_HINTS.gsm[gsmSched] || '';
+
+  // GSM 적용 불가 경고
+  const gsmWarnEl = document.getElementById('gsm-schedule-warn');
+  if (gsmWarnEl) {
+    let warn = '';
+    if (gsmSched === 'short_charter') {
+      if (isListed)       warn = SCHEDULE_HINTS.gsmWarn.short_charter_listed;
+      else if (!capSmall) warn = SCHEDULE_HINTS.gsmWarn.short_charter_capital;
+    } else if (gsmSched === 'unanimous') {
+      if (!capSmall)      warn = SCHEDULE_HINTS.gsmWarn.unanimous_capital;
+    }
+    gsmWarnEl.textContent = warn;
+    gsmWarnEl.style.display = warn ? 'block' : 'none';
+  }
 
   const bodHintEl = document.getElementById('bod-schedule-hint');
   if (bodHintEl) bodHintEl.textContent = SCHEDULE_HINTS.bod[bodSched] || '';
@@ -411,6 +435,7 @@ function getProfile() {
     foreign:         getOptValue('pf-foreign'),
     fyDate:          fyDate || document.getElementById('pf-agm-date').value,
     agmDate:         document.getElementById('pf-agm-date').value,
+    capital:         getOptValue('pf-capital') || 'large',
     gsmSchedule:     getOptValue('pf-gsm-schedule') || 'normal',
     bodSchedule:     getOptValue('pf-bod-schedule') || 'normal',
     bodCharterDays:  bodCharterDaysEl ? (parseInt(bodCharterDaysEl.value) || 3) : 3,
@@ -449,6 +474,7 @@ function renderTimeline() {
     { l:'회의 유형',  v: labels.meetingType[mt] || mt },
     { l:'상장 여부',  v: labels.listing[pf.listing] || '-' },
     { l:'자산 규모',  v: labels.asset[pf.asset] || '-' },
+    { l:'자본금',     v: pf.capital === 'small' ? '10억 미만' : '10억 이상' },
     { l:'감사기구',   v: labels.auditorType[pf.auditorType] || '-' },
     { l:'결산일',     v: pf.fyDate || '-' },
     { l: mt === 'bod' ? '이사회 예정일' : mt === 'egm' ? '임시주총 예정일' : '주총 예정일', v: pf.agmDate },

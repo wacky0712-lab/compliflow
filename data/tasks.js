@@ -36,23 +36,32 @@ function buildTasks(pf, agendas) {
   const hasBodContract = agendas.includes('bod_contract');
 
   // 소집 일정 단축 옵션
-  // gsmSchedule: 'normal'(2주) | 'short_charter'(10일, 정관) | 'unanimous'(전원동의)
-  // bodSchedule: 'normal'(7일) | 'short_charter'(정관X일) | 'unanimous'(전원동의)
+  // gsmSchedule: 'normal'(2주) | 'short_charter'(10일, 정관) | 'unanimous'(전원동의, §363④)
+  // bodSchedule: 'normal'(7일) | 'short_charter'(정관X일) | 'unanimous'(전원동의, §390③)
   const gsmSchedule    = pf.gsmSchedule || 'normal';
   const bodSchedule    = pf.bodSchedule || 'normal';
   const bodCharterDays = pf.bodCharterDays || 3;
+  const capitalSmall   = pf.capital === 'small'; // 자본금 10억 미만 여부 (§363①·④ 적용 조건)
+
+  // 적용 요건 검증: §363① 단서(10일)는 비상장+자본금10억미만, §363④(전원동의)는 자본금10억미만
+  const gsmShortAllowed     = !isListed && capitalSmall;  // short_charter 적용 가능 여부
+  const gsmUnanimousAllowed = capitalSmall;               // unanimous 적용 가능 여부
 
   const gsmUnanimous   = gsmSchedule === 'unanimous';
   const gsmShort       = gsmSchedule === 'short_charter';
   const bodUnanimous   = bodSchedule === 'unanimous';
   const bodShort       = bodSchedule === 'short_charter';
 
-  // 주총 소집통지 기간: 정상=14일, 정관단축=10일, 전원동의=1일(형식적 확인)
-  const gsmNoticeOffset = gsmUnanimous ? -1 : gsmShort ? -10 : -14;
+  // 적용 불가 옵션은 법정 기간으로 fallback
+  const effectiveGsmUnanimous = gsmUnanimous && gsmUnanimousAllowed;
+  const effectiveGsmShort     = gsmShort     && gsmShortAllowed;
+
+  // 주총 소집통지 기간: 정상=14일, 정관단축=10일(§363① 단서), 전원동의=1일(§363④)
+  const gsmNoticeOffset = effectiveGsmUnanimous ? -1 : effectiveGsmShort ? -10 : -14;
   // 소집결정 이사회: 전원동의=7일전으로 단축, 정관단축=28일전, 정상=42일전
-  const gsmBodOffset    = gsmUnanimous ? -7 : gsmShort ? -28 : -42;
+  const gsmBodOffset    = effectiveGsmUnanimous ? -7 : effectiveGsmShort ? -28 : -42;
   // 서류 비치: 전원동의=3일전(법적 의무는 유지, 실무 단축), 정상=7일전
-  const gsmDocsOffset   = gsmUnanimous ? -3 : -7;
+  const gsmDocsOffset   = effectiveGsmUnanimous ? -3 : -7;
   // 이사회 소집통지: 정상=7일, 정관단축=정관기간, 전원동의=0(당일 확인)
   const bodNoticeOffset = bodUnanimous ? 0 : bodShort ? -bodCharterDays : -7;
 
@@ -292,18 +301,22 @@ function buildTasks(pf, agendas) {
   T.push({
     id:'t10', dBase:'D', dOffset: gsmBodOffset,
     title:'주총 소집 결정 이사회',
-    content:`${isEGM ? '임시주총' : '정기주총'} 일시, 장소, 목적사항(안건) 확정${gsmUnanimous ? ' (전원동의 예정)' : ''}`,
+    content:`${isEGM ? '임시주총' : '정기주총'} 일시, 장소, 목적사항(안건) 확정${effectiveGsmUnanimous ? ' (전원동의 예정)' : ''}`,
     law:'상법 제362조 (이사회의 주총소집 결정)',
     category:'주총준비',
     tags:['필수'],
     detail:'이사회에서 결의할 사항: ① 주총 일시·장소, ② 의안(목적사항), ③ 전자투표 도입 여부, ④ 서면투표 도입 여부, ⑤ 의결권대리행사 권유 여부.'
-      + (gsmUnanimous ? ' 주주 전원 동의를 통해 소집통지를 생략할 경우, 이 이사회에서 전원동의 방침을 확인하고 동의서 징구 절차도 병행.' : ''),
+      + (effectiveGsmUnanimous ? ' 주주 전원 동의를 통해 소집통지를 생략할 경우, 이 이사회에서 전원동의 방침을 확인하고 동의서 징구 절차도 병행.' : ''),
     filing: isListed ? '주요경영사항 수시공시 (주주총회 소집 결의)' : '',
-    exception: gsmUnanimous
-      ? '주주 전원 동의(상법 §363④) 예정이므로 소집결정 이사회를 주총 직전 7일 전으로 단축. 전원 동의서 징구 일정과 연계.'
-      : gsmShort
-        ? '정관 단축(10일) 적용으로 소집결정 이사회를 주총 28일 전으로 조정.'
-        : '',
+    exception: effectiveGsmUnanimous
+      ? '주주 전원 동의(상법 §363④) 예정이므로 소집결정 이사회를 주총 직전 7일 전으로 단축. 전원 동의서 징구 일정과 연계. ※ 적용 요건: 자본금 10억 미만 회사'
+      : effectiveGsmShort
+        ? '정관 단축(10일) 적용으로 소집결정 이사회를 주총 28일 전으로 조정. ※ 적용 요건: 비상장 + 자본금 10억 미만 + 정관에 단축 규정 명시'
+        : gsmUnanimous && !gsmUnanimousAllowed
+          ? '⚠ 주주 전원 동의(§363④)는 자본금 10억 미만 회사에만 적용 가능합니다. 현재 회사 정보 기준 법정 2주 기간이 적용됩니다.'
+          : gsmShort && !gsmShortAllowed
+            ? '⚠ 정관 단축(§363① 단서)은 비상장 + 자본금 10억 미만 회사에만 적용 가능합니다. 현재 회사 정보 기준 법정 2주 기간이 적용됩니다.'
+            : '',
     show: isGSM,
   });
 
@@ -340,21 +353,21 @@ function buildTasks(pf, agendas) {
     }
   });
 
-  // 주총 소집통지 — gsmSchedule에 따라 오프셋·제목·내용 변화
-  const gsmNoticeTitle   = gsmUnanimous ? '주주 전원 동의서 수령 / 소집통지 생략' : '주총 소집통지 발송';
-  const gsmNoticeContent = gsmUnanimous
+  // 주총 소집통지 — gsmSchedule에 따라 오프셋·제목·내용 변화 (effective 플래그 사용)
+  const gsmNoticeTitle   = effectiveGsmUnanimous ? '주주 전원 동의서 수령 / 소집통지 생략' : '주총 소집통지 발송';
+  const gsmNoticeContent = effectiveGsmUnanimous
     ? '주주 전원의 서면 동의 수령 — 소집통지 절차 생략 (상법 §363④)'
-    : gsmShort
+    : effectiveGsmShort
       ? `정관상 단축 기간(10일 전) 소집통지 발송 (상법 §363① 단서)`
       : `각 주주에게 서면/전자 소집통지 발송 (${isEGM ? '임시주총' : '정기주총'}, 2주 전)`;
-  const gsmNoticeLaw     = gsmUnanimous
-    ? '상법 제363조 제4항 (주주 전원 동의 시 소집통지 생략)'
-    : gsmShort
-      ? '상법 제363조 제1항 단서 (정관 단축 — 비상장 자본금 10억 미만)'
+  const gsmNoticeLaw     = effectiveGsmUnanimous
+    ? '상법 제363조 제4항 (주주 전원 동의 시 소집통지 생략 — 자본금 10억 미만 회사 적용)'
+    : effectiveGsmShort
+      ? '상법 제363조 제1항 단서 (정관 단축 — 비상장 + 자본금 10억 미만)'
       : '상법 제363조 제1항 (주총일 2주 전 소집통지)';
-  const gsmNoticeDetail  = gsmUnanimous
-    ? '주주 전원으로부터 서면 동의서를 징구하여 소집통지를 생략. 동의서에는 주총 일시·장소·목적사항 기재. 동의서 원본은 10년 보관 권장. 주주 전원 동의이므로 발행주식 100% 대상(자기주식 제외). ※ 상법 §363④의 "주주 전원"은 의결권 있는 주주 전원을 의미.'
-    : gsmShort
+  const gsmNoticeDetail  = effectiveGsmUnanimous
+    ? '주주 전원으로부터 서면 동의서를 징구하여 소집통지를 생략. 동의서에는 주총 일시·장소·목적사항 기재. 동의서 원본은 10년 보관 권장. 주주 전원 동의이므로 발행주식 100% 대상(자기주식 제외). ※ 상법 §363④의 "주주 전원"은 의결권 있는 주주 전원을 의미. ※ 적용 요건: 자본금 총액 10억 미만 회사.'
+    : effectiveGsmShort
       ? '정관에 "2주" 대신 "10일"로 단축 규정이 있어야 적용 가능. 비상장사이고 자본금 10억 미만인 경우만 허용. 통지 내용(일시·장소·의안 요령)은 동일.'
       : '통지 내용: 일시, 장소, 목적사항(의안 요령). 통지 방법: 등기우편(원칙), 정관에 따라 전자적 방법 병행 가능. 발행주식총수의 1% 이하 소주주는 정관 규정에 따라 통지 생략 가능(상법 §363③).';
 
@@ -366,12 +379,16 @@ function buildTasks(pf, agendas) {
     category:'주총준비',
     tags:['필수'],
     detail:  gsmNoticeDetail,
-    filing: gsmUnanimous ? '' : (isListed ? '소집통지 공고 (관보 또는 전자공시)' : ''),
-    exception: gsmUnanimous
-      ? '소집통지 생략 적용 요건: ① 발행주식 100%(의결권 있는 주주) 전원 서면 동의, ② 동의서에 목적사항 명시. 주주 전원 동의이므로 정족수 충족 여부와 별도로 유효성 확인 필요.'
-      : gsmShort
-        ? '비상장 자본금 10억 미만 + 정관에 10일 기간 명시 시에만 적용 가능.'
-        : '',
+    filing: effectiveGsmUnanimous ? '' : (isListed ? '소집통지 공고 (관보 또는 전자공시)' : ''),
+    exception: effectiveGsmUnanimous
+      ? '소집통지 생략 적용 요건: ① 자본금 10억 미만 회사, ② 발행주식 100%(의결권 있는 주주) 전원 서면 동의, ③ 동의서에 목적사항 명시. 주주 전원 동의이므로 정족수 충족 여부와 별도로 유효성 확인 필요.'
+      : effectiveGsmShort
+        ? '비상장 + 자본금 10억 미만 + 정관에 10일 기간 명시 시에만 적용 가능.'
+        : gsmUnanimous && !gsmUnanimousAllowed
+          ? '⚠ 주주 전원 동의(§363④)는 자본금 10억 미만 회사에만 적용됩니다. 현재 설정 기준 법정 2주 소집통지가 적용됩니다.'
+          : gsmShort && !gsmShortAllowed
+            ? '⚠ 정관 단축(§363① 단서)은 비상장 + 자본금 10억 미만 회사에만 적용됩니다. 현재 설정 기준 법정 2주 소집통지가 적용됩니다.'
+            : '',
     show: isGSM,
   });
 
@@ -396,9 +413,9 @@ function buildTasks(pf, agendas) {
     category:'주총준비',
     tags:['필수'],
     detail:'비치 서류: ① 재무제표(B/S, P/L, 이익잉여금처분계산서 등), ② 영업보고서, ③ 감사보고서. 주주와 채권자는 열람 가능.'
-      + (gsmUnanimous ? ' ※ 주주 전원 동의로 소집통지를 생략하더라도 서류비치 의무(상법 §448)는 별도 적용. 실무상 주총 3일 전까지는 비치 완료 권장.' : ''),
+      + (effectiveGsmUnanimous ? ' ※ 주주 전원 동의로 소집통지를 생략하더라도 서류비치 의무(상법 §448)는 별도 적용. 실무상 주총 3일 전까지는 비치 완료 권장.' : ''),
     filing:'',
-    exception: gsmUnanimous
+    exception: effectiveGsmUnanimous
       ? '상법 §448 서류비치 의무는 소집통지 생략(§363④)과 무관하게 적용. 법문상 "주총 1주 전"이 원칙이나 전원동의 단기 개최 시 실무상 3일 전 비치로 갈음하는 경우 있음 — 법적 리스크 감안 필요.'
       : '',
     show: isGSM,
