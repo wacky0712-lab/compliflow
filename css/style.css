@@ -49,10 +49,10 @@ header p{color:var(--text2);margin-top:4px;font-size:15px}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:700px){
 .form-grid{grid-template-columns:1fr}
-.steps{gap:0;overflow-x:auto;justify-content:flex-start;-webkit-overflow-scrolling:touch}
-.step{padding:8px 10px;font-size:12px;gap:5px;white-space:nowrap;flex-shrink:0}
-.step span{display:none}
-.step-num{width:30px;height:30px;min-width:30px;min-height:30px;font-size:13px}
+.steps{gap:0;justify-content:space-around;margin:12px 0 20px}
+.step{flex-direction:column;padding:8px 6px;font-size:11px;gap:4px;flex:1;text-align:center;min-width:0}
+.step span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-size:11px;line-height:1.3}
+.step-num{width:32px;height:32px;min-width:32px;min-height:32px;font-size:14px}
 }
 .form-group{display:flex;flex-direction:column;gap:4px}
 .form-group label{font-size:13px;font-weight:600;color:var(--text2)}
