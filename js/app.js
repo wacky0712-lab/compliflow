@@ -698,6 +698,13 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
 
     const data = await response.json();
 
+    if (!response.ok) {
+      const errMsg = data?.error?.message || `HTTP ${response.status}`;
+      statusBar.innerHTML = `<span style="color:var(--red)"><strong>&#9888; API 오류</strong> &mdash; ${errMsg}</span>`;
+      resultsContent.innerHTML = `<div style="padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--text2)">${errMsg}</div>`;
+      return;
+    }
+
     document.getElementById('prog-analyze').className = 'ai-progress-step done';
     document.getElementById('prog-compare').className = 'ai-progress-step active';
 
@@ -757,8 +764,30 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
     }
 
   } catch (err) {
-    statusBar.innerHTML = `<span style="color:var(--red)"><strong>&#9888; 검색 실패</strong> &mdash; ${err.message}</span>`;
-    resultsContent.innerHTML = `<div style="padding:16px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);font-size:13px;color:var(--red)">API 호출 중 오류: ${err.message}</div>`;
+    const isNetworkErr = err instanceof TypeError &&
+      (err.message.includes('Load failed') || err.message.includes('Failed to fetch') || err.message.includes('NetworkError'));
+
+    if (isNetworkErr) {
+      statusBar.innerHTML = `<span style="color:var(--red)"><strong>&#9888; 네트워크 차단</strong> &mdash; 브라우저가 외부 API 요청을 차단했습니다.</span>`;
+      resultsContent.innerHTML = `
+        <div style="padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--text2);line-height:1.8">
+          <strong style="color:var(--text)">원인</strong><br>
+          로컬 프리뷰 또는 일부 브라우저 환경에서는 보안 정책(CORS/CSP)으로 인해 외부 API 호출이 차단됩니다.<br><br>
+          <strong style="color:var(--text)">해결 방법</strong>
+          <ol style="margin:8px 0 0 16px;padding:0">
+            <li>아래 <strong>GitHub Pages 주소</strong>로 접속해 사용하세요.<br>
+              <a href="https://wacky0712-lab.github.io/compliflow" target="_blank"
+                style="color:var(--accent);word-break:break-all">
+                https://wacky0712-lab.github.io/compliflow
+              </a>
+            </li>
+            <li>API 키를 입력하고 다시 시도하세요.</li>
+          </ol>
+        </div>`;
+    } else {
+      statusBar.innerHTML = `<span style="color:var(--red)"><strong>&#9888; 검색 실패</strong> &mdash; ${err.message}</span>`;
+      resultsContent.innerHTML = `<div style="padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--text2)">오류: ${err.message}</div>`;
+    }
   }
 
   btn.disabled = false;
