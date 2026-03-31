@@ -1,0 +1,939 @@
+// ═══ CompliFlow 앱 로직 ═══
+// 이 파일은 UI 로직을 담당합니다. 데이터 수정 시에는 data/ 폴더의 파일을 수정하세요.
+
+// ═══════════════════════════════════════════════
+// MODAL RENDERING
+// ═══════════════════════════════════════════════
+
+function openProcessModal(taskId) {
+  const proc = PROCESS_DB[taskId];
+  if (!proc) {
+    alert('이 업무의 세부 프로세스는 아직 준비 중입니다.');
+    return;
+  }
+
+  document.getElementById('modal-title').textContent = proc.title;
+  const body = document.getElementById('modal-body');
+  let html = '';
+
+  if (proc.updated) {
+    html += `<div style="font-size:11px;color:var(--text3);margin-bottom:16px">최종 업데이트: ${proc.updated}</div>`;
+  }
+
+  proc.sections.forEach(sec => {
+    html += `<div class="proc-section">`;
+    html += `<div class="proc-section-title">${sec.title}</div>`;
+
+    if (sec.type === 'steps') {
+      sec.items.forEach((item, i) => {
+        html += `
+          <div class="proc-step">
+            <div class="proc-step-num">${i+1}</div>
+            <div class="proc-step-content">
+              <div class="proc-step-title">${item.title}</div>
+              <div class="proc-step-desc">${item.desc}</div>
+            </div>
+          </div>`;
+      });
+    }
+
+    else if (sec.type === 'docs') {
+      html += '<div class="proc-docs">';
+      sec.items.forEach(doc => {
+        const whoMap = {
+          company: { label: '회사', cls: 'who-company' },
+          director: { label: '이사/감사', cls: 'who-director' },
+          shareholder: { label: '주주', cls: 'who-shareholder' },
+          lawfirm: { label: '법무사/법무법인', cls: 'who-lawfirm' },
+          auditor: { label: '감사인/회계법인', cls: 'who-auditor' },
+        };
+        const w = whoMap[doc.who] || { label: doc.who, cls: 'who-company' };
+        html += `
+          <div class="proc-doc-card">
+            <span class="proc-doc-who ${w.cls}">${w.label}</span>
+            <div class="proc-doc-name">${doc.name}</div>
+            ${doc.note ? `<div class="proc-doc-note">${doc.note}</div>` : ''}
+          </div>`;
+      });
+      html += '</div>';
+    }
+
+    else if (sec.type === 'lawfirm') {
+      sec.items.forEach((item, i) => {
+        html += `
+          <div class="proc-step">
+            <div class="proc-step-num" style="background:var(--amber)">${i+1}</div>
+            <div class="proc-step-content">
+              <div class="proc-step-title">${item.title}</div>
+              <div class="proc-step-desc">${item.desc}</div>
+            </div>
+          </div>`;
+      });
+    }
+
+    else if (sec.type === 'tips') {
+      sec.items.forEach(tip => {
+        html += `<div class="proc-tip">${tip}</div>`;
+      });
+    }
+
+    html += '</div>';
+  });
+
+  body.innerHTML = html;
+  document.getElementById('proc-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('proc-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+
+    filing:'',
+    exception:'감사의견 지연 시 주총 일정 조정 불가피할 수 있음',
+    show:isAudit,
+  });
+
+  // ── 의결권대리행사 권유 ──
+  T.push({
+    id:'t12',dBase:'D',dOffset:-28,
+    title:'의결권대리행사 권유 (위임장 권유)',
+    content:'상장사 의무: 의결권대리행사 권유 참고서류 제출',
+    law:'자본시장법 제152조, 동법 시행령 제160조',
+    category:'주총준비',
+    tags:['상장','공시'],
+    detail:'상장사는 주총 소집통지일까지 의결권대리행사 권유 참고서류를 DART에 제출·비치. 전자투표 도입 시 의결권대리행사 권유 의무 면제 가능 (자본시장법 제152조 제2항 단서).',
+    filing:'DART 제출 (의결권대리행사 권유 참고서류)',
+    exception:'전자투표를 도입하는 경우 의결권대리행사 권유 의무 면제 가능',
+    show:isListed,
+    exceptionToggle:{
+      id:'ex_evote',
+      label:'전자투표 도입 (의결권대리행사 권유 면제)',
+      effect:'의결권대리행사 권유 절차 생략 가능',
+    }
+  });
+
+  // ── 주총 소집통지 ──
+  T.push({
+    id:'t13',dBase:'D',dOffset:-14,
+    title:'주총 소집통지 발송',
+    content:'각 주주에게 서면/전자 소집통지 발송',
+    law:'상법 제363조 (소집의 통지)',
+    category:'주총준비',
+    tags:['필수'],
+    detail:'통지 내용: 일시, 장소, 목적사항(의안 요령). 통지 방법: 등기우편(원칙), 정관에 따라 전자적 방법 병행 가능. 발행주식총수의 1% 이하 소유 주주에게는 정관 규정에 따라 통지 생략 가능(상법 제363조 제3항).',
+    filing:isListed?'소집통지 공고 (관보 또는 전자공시)':'',
+    exception:'',
+    show:true,
+    exceptionToggle:{
+      id:'ex_short_notice',
+      label:'소집통지 기간 단축 (10일 전)',
+      effect:'비상장사, 자본금 10억 미만: 정관에 10일로 단축 가능 (상법 제363조 제1항 단서). 후행 일정이 앞당겨집니다.',
+      shortDays:4,
+      condition:!isListed,
+    }
+  });
+
+  // ── 사업보고서 제출 (상장사) ──
+  T.push({
+    id:'t14',dBase:'D',dOffset:-7,
+    title:'사업보고서 사전 제출',
+    content:'정기주총 1주 전까지 사업보고서를 DART에 제출',
+    law:'자본시장법 제159조 (사업보고서 등의 제출)',
+    category:'공시',
+    tags:['상장','공시'],
+    detail:'사업보고서에는 재무제표, 감사보고서, 경영진 분석(MD&A) 등 포함. 주총 1주 전 제출이 원칙이나, 주총 후 90일 이내 최종본 제출 의무.',
+    filing:'DART 전자공시',
+    exception:'주총 전 제출이 어려운 경우 주총 후 90일(사업연도 경과 후 90일) 이내 제출로 대체 가능하나 실무상 주총 전 제출 권장',
+    show:isListed,
+  });
+
+  // ── 재무제표 등 서류 비치 ──
+  T.push({
+    id:'t15',dBase:'D',dOffset:-7,
+    title:'재무제표·영업보고서·감사보고서 비치',
+    content:'주총 1주 전부터 본점에 5년간, 지점에 3년간 비치',
+    law:'상법 제448조 (재무제표등의 비치·공시)',
+    category:'주총준비',
+    tags:['필수'],
+    detail:'비치 서류: ① 재무제표(B/S, P/L, 이익잉여금처분계산서 등), ② 영업보고서, ③ 감사보고서. 주주와 채권자는 열람 가능.',
+    filing:'',
+    exception:'',
+    show:true,
+  });
+
+  // ── 전자투표 ──
+  T.push({
+    id:'t16',dBase:'D',dOffset:-10,
+    title:'전자투표 시스템 개시',
+    content:'전자투표 도입 시, 주총 10일 전~전일까지 전자투표 기간 운영',
+    law:'상법 제368조의4 (전자적 방법에 의한 의결권 행사)',
+    category:'주총준비',
+    tags:['조건부'],
+    detail:'전자투표관리기관(한국예탁결제원 K-Vote) 위탁. 주총 10일 전부터 전일까지 투표 가능. 2025 전자주총법 시행에 따라 전자주총(완전 온라인) 도입 가능.',
+    filing:'',
+    exception:'전자주총(2025 전자주총법)을 도입하면 물리적 장소 없이 온라인으로만 개최 가능',
+    show:true,
+  });
+
+  // ═══ AGM DAY ═══
+  T.push({
+    id:'t20',dBase:'D',dOffset:0,
+    title:'정기주주총회 개최',
+    content:'주주총회 당일. 안건 심의·의결, 의사록 작성.',
+    law:'상법 제363조~제376조',
+    category:'주총',
+    tags:['필수'],
+    detail:'개회→의장선출→안건상정→토론→표결→폐회. 의장은 대표이사(정관 규정). 보통결의(출석 과반수+발행주식 1/4 이상), 특별결의(출석 2/3+발행주식 1/3 이상). 의사록 작성·공증 필수(상법 제373조).',
+    filing:isListed?'주총결과 수시공시 (의안별 가결/부결, 찬성률)':'',
+    exception:'',
+    show:true,
+  });
+
+  // ═══ POST-AGM ═══
+
+  // ── 등기 ──
+  if(hasDirector||hasAuditorElect||hasOutsideDir){
+    T.push({
+      id:'t30',dBase:'D',dOffset:14,
+      title:'임원 변경등기 신청',
+      content:'이사·감사 선임/퇴임에 따른 변경등기',
+      law:'상법 제317조 (변경등기), 상업등기법',
+      category:'등기',
+      tags:['필수','등기'],
+      detail:'주총일로부터 2주 이내 본점 소재지 관할 등기소에 신청. 첨부서류: 주총의사록, 취임승낙서, 인감증명서, 주민등록초본, 위임장(법무사 위임 시). 등록면허세·교육세 납부.',
+      filing:'등기완료 후 법인등기부등본 발급·확인',
+      exception:'본점 외 지점 소재지에도 등기 필요했으나, 2024년 지점등기 폐지로 본점 소재지만 등기',
+      show:true,
+    });
+  }
+  if(hasCharter||hasNameChange){
+    T.push({
+      id:'t31',dBase:'D',dOffset:14,
+      title:'정관 변경등기 신청',
+      content:'정관 변경사항에 대한 변경등기',
+      law:'상법 제317조, 상업등기법',
+      category:'등기',
+      tags:['필수','등기'],
+      detail:'목적사업 변경, 수권자본 변경, 상호 변경 등 등기사항이 변경된 경우 2주 이내 등기. 첨부서류: 변경된 정관(전문), 주총의사록, 위임장.',
+      filing:'',
+      exception:'',
+      show:true,
+    });
+  }
+  if(hasHqMove){
+    T.push({
+      id:'t32',dBase:'D',dOffset:14,
+      title:'본점 이전등기 신청',
+      content:'본점 소재지 변경에 따른 이전등기',
+      law:'상법 제171조, 제317조, 상업등기법',
+      category:'등기',
+      tags:['필수','등기'],
+      detail:'구 소재지: 2주 내 이전등기, 신 소재지: 3주 내 설정등기. 관할이 동일한 경우에는 이전등기만. 사업자등록 정정, 각종 인허가·신고 주소 변경 후속 필요.',
+      filing:'사업자등록 정정(세무서), 4대보험 주소변경(공단)',
+      exception:'관할 변경이 없는 경우(같은 등기소) 절차 간소화',
+      show:true,
+    });
+  }
+  if(hasCapital){
+    T.push({
+      id:'t33',dBase:'D',dOffset:14,
+      title:'자본금 변경등기 신청',
+      content:'증자/감자에 따른 자본금 변경등기',
+      law:'상법 제416조~제443조, 상업등기법',
+      category:'등기',
+      tags:['필수','등기'],
+      detail:'유상증자: 납입기일 후 2주 내 등기. 감자: 채권자이의절차(1개월) 완료 후 등기. 전환사채 전환 시: 전환 청구 후 등기.',
+      filing:isListed?'증권신고서 제출(유상증자 시, 자본시장법 제119조)':'',
+      exception:'소규모 주주배정 증자(발행주식 10% 이하)의 경우 증권신고서 면제 가능',
+      show:true,
+    });
+  }
+
+  // ── 배당금 지급 ──
+  if(hasDividend){
+    T.push({
+      id:'t35',dBase:'D',dOffset:30,
+      title:'배당금 지급',
+      content:'주총에서 확정된 배당금을 주주에게 지급',
+      law:'상법 제464조의2 (이익배당의 지급시기)',
+      category:'배당',
+      tags:['필수'],
+      detail:'주총 결의일로부터 1개월 이내 지급 (상법 규정). 배당소득세 원천징수(14%+주민세) 후 지급. 배당금 지급 대행(증권예탁원) 활용 가능.',
+      filing:'원천징수 이행상황 신고서 (세무서)',
+      exception:'정관으로 1개월을 초과하지 않는 범위에서 지급기한 단축 가능. 주주 미수령 배당금은 소멸시효(5년) 관리 필요.',
+      show:true,
+    });
+  }
+
+  // ── 법인세 신고 ──
+  T.push({
+    id:'t40',dBase:'R',dOffset:90,
+    title:'법인세 신고·납부',
+    content:'사업연도 종료 후 3개월 이내 법인세 신고·납부',
+    law:'법인세법 제60조 (과세표준의 신고), 제64조 (납부)',
+    category:'세무',
+    tags:['필수','신고'],
+    detail:'결산 확정 세무조정, 세무신고서 작성, 법인세 납부. 외감법인은 감사보고서 첨부 의무. 첨부서류: 재무제표, 세무조정계산서, 법인세 과세표준 및 세액신고서.',
+    filing:'세무서 e-신고 (국세청 홈택스)',
+    exception:'성실신고확인대상 법인, 연결납세법인은 4개월(D+120)까지 연장 가능',
+    show:true,
+    exceptionToggle:{
+      id:'ex_tax_extend',
+      label:'법인세 신고기한 연장 (D+120)',
+      effect:'성실신고확인대상 또는 연결납세법인 해당 시 1개월 연장',
+      shortDays:-30,
+    }
+  });
+
+  // ── 법인지방소득세 ──
+  T.push({
+    id:'t41',dBase:'R',dOffset:120,
+    title:'법인지방소득세 신고·납부',
+    content:'법인세 신고기한 경과 후 1개월 이내',
+    law:'지방세법 제103조의23',
+    category:'세무',
+    tags:['필수','신고'],
+    detail:'법인세 과세표준에 지방세율(1~2.5%) 적용. 사업장 소재지별 안분 신고. 각 지자체 위택스(Wetax) 전자신고.',
+    filing:'위택스(Wetax) 전자신고',
+    exception:'법인세 신고기한 연장 시 동일하게 연장됨',
+    show:true,
+  });
+
+  // ── 사업보고서 최종 제출 (상장사) ──
+  T.push({
+    id:'t42',dBase:'R',dOffset:90,
+    title:'사업보고서 최종 제출',
+    content:'사업연도 경과 후 90일 이내 DART 제출',
+    law:'자본시장법 제159조',
+    category:'공시',
+    tags:['상장','공시'],
+    detail:'사업보고서 최종본 제출. 주총 전 사전제출한 경우에도 주총결과 반영하여 최종 갱신 필요.',
+    filing:'DART 전자공시',
+    exception:'제출기한 연장 사유가 있는 경우 금감원에 연장 신청 가능 (예외적)',
+    show:isListed,
+  });
+
+  // ── 대규모기업집단 공시 ──
+  T.push({
+    id:'t43',dBase:'R',dOffset:120,
+    title:'대규모기업집단 현황 공시',
+    content:'기업집단 현황 등에 관한 공시',
+    law:'공정거래법 제26조의2',
+    category:'공시',
+    tags:['기업집단'],
+    detail:'공정위에 기업집단 현황(주식소유현황, 계열사 현황, 재무현황 등) 신고·공시. 지정일 기준으로 5월 중 제출이 일반적.',
+    filing:'공정거래위원회 전자공시',
+    exception:'',
+    show:isConglom,
+  });
+
+  // ── 내부회계관리제도 보고 ──
+  T.push({
+    id:'t44',dBase:'D',dOffset:0,
+    title:'내부회계관리제도 운영실태 보고',
+    content:'정기주총 시 내부회계관리제도 운영실태를 보고',
+    law:'외감법 제8조 (내부회계관리제도의 운영 등)',
+    category:'감사',
+    tags:['외감'],
+    detail:'대표이사가 이사회 및 감사(위원회)에 보고. 감사(위원회)는 내부회계관리제도 평가보고서 작성. 자산 2조 이상: 외부감사인의 감사 대상, 2조 미만: 검토 대상.',
+    filing:'',
+    exception:'',
+    show:isAudit,
+  });
+
+  // ── 주요 안건별 추가 업무 ──
+  if(hasMerger){
+    T.push({
+      id:'t50',dBase:'D',dOffset:-30,
+      title:'합병/분할 관련 사전공시 및 채권자보호절차',
+      content:'합병계약서 공시, 채권자이의제출 공고(1개월)',
+      law:'상법 제522조~제530조, 자본시장법 제165조의4',
+      category:'특별안건',
+      tags:['필수','공시'],
+      detail:'합병계약서 본점 비치, 채권자이의절차(1개월), 합병등기. 상장사: 합병보고서·신고서 DART 제출.',
+      filing:'DART 수시공시, 합병등기',
+      exception:'소규모합병(발행주식 10% 이하 신주): 주총 대신 이사회 결의 가능. 간이합병(90% 이상 지분 보유): 주총 생략 가능.',
+      show:true,
+    });
+  }
+  if(hasStockOption){
+    T.push({
+      id:'t51',dBase:'D',dOffset:14,
+      title:'스톡옵션 부여 등기 및 공시',
+      content:'주총에서 스톡옵션 부여 결의 후 등기·공시',
+      law:'상법 제340조의2~340조의5',
+      category:'특별안건',
+      tags:['등기','공시'],
+      detail:'부여 대상, 수량, 행사가액, 행사기간 등을 주총에서 결의. 주총의사록에 상세 기재. 변경등기(등기사항). 상장사: 수시공시.',
+      filing:isListed?'DART 수시공시 + 변경등기':'변경등기',
+      exception:'',
+      show:true,
+    });
+  }
+  if(hasTreasury){
+    T.push({
+      id:'t52',dBase:'D',dOffset:14,
+      title:'자기주식 소각 등기',
+      content:'이익소각 결의에 따른 주식소각 등기',
+      law:'상법 제343조 (주식의 소각)',
+      category:'특별안건',
+      tags:['등기'],
+      detail:'주총 결의 후 소각 실행, 자본금 변동 시 변경등기. 발행주식총수 변경에 따른 등기.',
+      filing:isListed?'DART 수시공시':'',
+      exception:'',
+      show:true,
+    });
+  }
+
+  return T.filter(t=>t.show).sort((a,b)=>{
+    const da = calcDate(a,pf);
+    const db = calcDate(b,pf);
+    return da-db;
+  });
+}
+
+
+// ═══════════════════════════════════════════════
+// DATE CALCULATION
+// ═══════════════════════════════════════════════
+
+function calcDate(task, pf, exceptions = {}) {
+  let base;
+  if (task.dBase === 'R') {
+    base = new Date(pf.fyDate);
+  } else {
+    base = new Date(pf.agmDate);
+  }
+  let offset = task.dOffset;
+
+  // Apply exception toggles that modify dates
+  if (task.exceptionToggle && exceptions[task.exceptionToggle.id]) {
+    if (task.exceptionToggle.shortDays) {
+      offset += task.exceptionToggle.shortDays;
+    }
+  }
+  // Short notice exception affects the notice task
+  if (task.id === 't13' && exceptions['ex_short_notice']) {
+    offset = -10;
+  }
+
+  const d = new Date(base);
+  d.setDate(d.getDate() + offset);
+  return d;
+}
+
+function formatDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  const dow = ['일','월','화','수','목','금','토'][d.getDay()];
+  return `${y}.${m}.${dd} (${dow})`;
+}
+
+function formatMonth(d) {
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월`;
+}
+
+function refDayLabel(task, exceptions) {
+  const base = task.dBase;
+  let offset = task.dOffset;
+  if (task.exceptionToggle && exceptions && exceptions[task.exceptionToggle.id]) {
+    if (task.exceptionToggle.shortDays) offset += task.exceptionToggle.shortDays;
+  }
+  if (task.id === 't13' && exceptions && exceptions['ex_short_notice']) offset = -10;
+
+  const code = base; // 'R' or 'D'
+  if (offset === 0) return `${code}-Day`;
+  if (offset > 0) return `${code}+${offset}`;
+  return `${code}${offset}`;
+}
+
+function todayDday(d) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const target = new Date(d);
+  target.setHours(0,0,0,0);
+  const diff = Math.round((target - today) / 86400000);
+  if (diff === 0) return '오늘';
+  if (diff > 0) return `${diff}일 후`;
+  return `${Math.abs(diff)}일 전`;
+}
+
+// ═══════════════════════════════════════════════
+// UI LOGIC
+// ═══════════════════════════════════════════════
+
+let currentStep = 0;
+let currentExceptions = {};
+let currentTasks = [];
+let currentProfile = {};
+
+function goStep(n) {
+  if (n === 2) {
+    const requiredFields = ['pf-listing','pf-audit','pf-type','pf-asset','pf-auditor-type'];
+    for (const field of requiredFields) {
+      if (!getOptValue(field)) {
+        const group = document.querySelector(`.opt-group[data-field="${field}"]`);
+        if (group) group.style.outline = '2px solid var(--red)';
+        setTimeout(() => { if (group) group.style.outline = ''; }, 2000);
+        alert('필수 항목을 모두 선택해주세요.');
+        return;
+      }
+    }
+    if (!document.getElementById('pf-fy-date').value || !document.getElementById('pf-agm-date').value) {
+      alert('결산일과 주총 예정일을 입력해주세요.');
+      return;
+    }
+  }
+  currentStep = n;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+n).classList.add('active');
+  document.querySelectorAll('.step').forEach(s => {
+    const sn = +s.dataset.step;
+    s.classList.remove('active','done');
+    if (sn === n) s.classList.add('active');
+    else if (sn < n) s.classList.add('done');
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// Initialize agenda checkboxes
+function initAgenda() {
+  renderCheckboxGroup('agenda-basic', AGENDA_BASIC);
+  renderCheckboxGroup('agenda-special', AGENDA_SPECIAL);
+  renderCheckboxGroup('agenda-others', AGENDA_OTHERS);
+}
+
+function renderCheckboxGroup(containerId, items) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = items.map(it => `
+    <label class="checkbox-item ${it.checked?'checked':''}" data-id="${it.id}">
+      <input type="checkbox" ${it.checked?'checked':''} ${it.always?'disabled':''} value="${it.id}" onchange="this.parentElement.classList.toggle('checked',this.checked)">
+      <div class="cb-content">
+        <div class="cb-title">${it.title}</div>
+        <div class="cb-desc">${it.desc}</div>
+      </div>
+    </label>
+  `).join('');
+}
+
+function getSelectedAgendas() {
+  const checks = document.querySelectorAll('#panel-2 input[type="checkbox"]:checked');
+  return Array.from(checks).map(c => c.value);
+}
+
+function selectOpt(btn) {
+  const group = btn.parentElement;
+  group.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function getOptValue(field) {
+  const group = document.querySelector(`.opt-group[data-field="${field}"]`);
+  if (!group) return '';
+  const sel = group.querySelector('.opt-btn.selected');
+  return sel ? sel.dataset.value : '';
+}
+
+function getProfile() {
+  return {
+    listing: getOptValue('pf-listing'),
+    audit: getOptValue('pf-audit'),
+    type: getOptValue('pf-type'),
+    asset: getOptValue('pf-asset'),
+    fy: getOptValue('pf-fy'),
+    auditorType: getOptValue('pf-auditor-type'),
+    conglomerate: getOptValue('pf-conglomerate'),
+    holding: getOptValue('pf-holding'),
+    finance: getOptValue('pf-finance'),
+    foreign: getOptValue('pf-foreign'),
+    fyDate: document.getElementById('pf-fy-date').value,
+    agmDate: document.getElementById('pf-agm-date').value,
+  };
+}
+
+function generateTimeline() {
+  currentProfile = getProfile();
+  const agendas = getSelectedAgendas();
+  currentExceptions = {};
+  currentTasks = buildTasks(currentProfile, agendas);
+  goStep(3);
+  renderTimeline();
+}
+
+function renderTimeline() {
+  const pf = currentProfile;
+  const tasks = currentTasks;
+
+  // Profile summary
+  const labels = {
+    listing:{kospi:'코스피 상장',kosdaq:'코스닥 상장',private:'비상장'},
+    audit:{yes:'외감 대상',no:'외감 비대상'},
+    asset:{under100b:'1천억 미만','100b-2t':'1천억~2조',over2t:'2조 이상'},
+    auditorType:{auditor:'감사',committee:'감사위원회'},
+    conglomerate:{yes:'대규모기업집단',no:'비소속'},
+  };
+  const summaryEl = document.getElementById('profile-summary');
+  summaryEl.innerHTML = [
+    {l:'상장 여부',v:labels.listing[pf.listing]},
+    {l:'외감 대상',v:labels.audit[pf.audit]},
+    {l:'자산 규모',v:labels.asset[pf.asset]},
+    {l:'감사기구',v:labels.auditorType[pf.auditorType]},
+    {l:'결산일',v:pf.fyDate},
+    {l:'주총 예정일',v:pf.agmDate},
+  ].map(s=>`<div class="summary-item"><div class="si-label">${s.l}</div><div class="si-value">${s.v}</div></div>`).join('');
+
+  // Reference day legend
+  const refLegend = document.getElementById('ref-day-legend');
+  if(refLegend) refLegend.remove();
+  const legendEl = document.createElement('div');
+  legendEl.id = 'ref-day-legend';
+  legendEl.innerHTML = `
+    <div class="ref-legend">
+      <div class="ref-legend-title">기준일 범례</div>
+      <div class="ref-legend-items">
+        <div class="ref-legend-item">
+          <span class="ref-code ref-R">R</span>
+          <div>
+            <div class="ref-name">결산일 (Reference date)</div>
+            <div class="ref-date">${formatDate(new Date(pf.fyDate))}</div>
+          </div>
+        </div>
+        <div class="ref-legend-item">
+          <span class="ref-code ref-D">D</span>
+          <div>
+            <div class="ref-name">주총일 (D-day)</div>
+            <div class="ref-date">${formatDate(new Date(pf.agmDate))}</div>
+          </div>
+        </div>
+      </div>
+      <div class="ref-legend-help">각 업무의 기한은 기준일로부터의 상대일수로 표기됩니다. 예) R+90 = 결산일로부터 90일 후, D-14 = 주총일 14일 전</div>
+    </div>
+  `;
+  document.getElementById('profile-summary').after(legendEl);
+
+  // Stats
+  const total = tasks.length;
+  const categories = [...new Set(tasks.map(t=>t.category))];
+  document.getElementById('stat-bar').innerHTML = `
+    <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-label">전체 업무</div></div>
+    <div class="stat-box"><div class="stat-num">${tasks.filter(t=>t.tags.includes('필수')).length}</div><div class="stat-label">필수 업무</div></div>
+    <div class="stat-box"><div class="stat-num">${tasks.filter(t=>t.tags.includes('등기')).length}</div><div class="stat-label">등기 사항</div></div>
+    <div class="stat-box"><div class="stat-num">${tasks.filter(t=>t.tags.includes('공시')).length}</div><div class="stat-label">공시 사항</div></div>
+    <div class="stat-box"><div class="stat-num">${tasks.filter(t=>t.tags.includes('신고')).length}</div><div class="stat-label">신고 사항</div></div>
+  `;
+
+  // Filter buttons
+  const allCats = ['전체',...categories];
+  const filterEl = document.getElementById('tl-filter');
+  filterEl.innerHTML = allCats.map(c=>`<button class="tl-filter-btn ${c==='전체'?'active':''}" onclick="filterTimeline(this,'${c}')">${c}</button>`).join('');
+
+  renderTasks(tasks);
+}
+
+function renderTasks(tasks, filterCat='전체') {
+  const pf = currentProfile;
+  const tlEl = document.getElementById('timeline');
+
+  // Group by month
+  const groups = {};
+  tasks.forEach(t => {
+    if (filterCat !== '전체' && t.category !== filterCat) return;
+    const d = calcDate(t, pf, currentExceptions);
+    const key = formatMonth(d);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push({...t, date: d});
+  });
+
+  let html = '';
+  for (const [month, items] of Object.entries(groups)) {
+    html += `<div class="tl-month"><div class="tl-month-header">${month}</div>`;
+    items.sort((a,b)=>a.date-b.date).forEach(t => {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const td = new Date(t.date); td.setHours(0,0,0,0);
+      let dateClass = '';
+      if (td.getTime() === today.getTime()) dateClass = 'today';
+      else if (td < today) dateClass = 'overdue';
+      else if ((td - today) / 86400000 <= 7) dateClass = 'upcoming';
+
+      const badges = t.tags.map(tag => {
+        const map = {
+          '필수':'b-required','조건부':'b-conditional',
+          '공시':'b-disclosure','등기':'b-registration',
+          '신고':'b-filing','상장':'b-conditional',
+          '외감':'b-conditional','기업집단':'b-conditional',
+        };
+        return `<span class="tl-badge ${map[tag]||'b-conditional'}">${tag}</span>`;
+      }).join('');
+
+      let exToggle = '';
+      if (t.exceptionToggle) {
+        const ex = t.exceptionToggle;
+        if (!ex.condition || ex.condition !== false) {
+          const checked = currentExceptions[ex.id] ? 'checked' : '';
+          exToggle = `<label class="exception-toggle">
+            <input type="checkbox" ${checked} onchange="toggleException('${ex.id}',this.checked)">
+            <div><strong>${ex.label}</strong><br><span style="font-size:11px;opacity:.8">${ex.effect}</span></div>
+          </label>`;
+        }
+      }
+
+      const refLabel = refDayLabel(t, currentExceptions);
+      const todayLabel = todayDday(t.date);
+      const isR = t.dBase === 'R';
+
+      html += `
+      <div class="tl-item" id="tl-${t.id}">
+        <div class="tl-header" onclick="toggleItem(this.parentElement)">
+          <div class="tl-date ${dateClass}">
+            <div class="tl-date-main">${formatDate(t.date).slice(5)}</div>
+            <div class="tl-ref-label ${isR?'ref-R':'ref-D'}">${refLabel}</div>
+            <div class="tl-date-sub">${todayLabel}</div>
+          </div>
+          <div class="tl-body">
+            <div class="tl-body-top">
+              <span class="tl-title">${t.title}</span>
+              ${badges}
+              <span class="tl-expand-icon">&#9662;</span>
+            </div>
+            <div class="tl-summary">${t.content}</div>
+          </div>
+        </div>
+        <div class="tl-detail" onclick="event.stopPropagation()">
+          <div class="tl-detail-grid">
+            <div class="tl-detail-section">
+              <h4>상세 내용</h4>
+              <p>${t.detail}</p>
+            </div>
+            <div class="tl-detail-section">
+              <h4>관련 법령</h4>
+              <p>${t.law}</p>
+            </div>
+          </div>
+          ${t.filing?`<div class="tl-detail-full"><div class="tl-detail-section"><h4>공시 / 등기 / 신고</h4><p>${t.filing}</p></div></div>`:''}
+          ${t.exception?`<div class="tl-detail-full"><div class="tl-detail-section"><h4>비고 (예외사항)</h4><p>${t.exception}</p></div></div>`:''}
+          ${exToggle}
+          <button class="proc-detail-btn" onclick="event.stopPropagation();openProcessModal('${t.id}')">세부 프로세스 보기 &rarr;</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  if (!html) html = '<p style="text-align:center;color:var(--text3);padding:40px">해당 조건에 맞는 업무가 없습니다.</p>';
+  tlEl.innerHTML = html;
+}
+
+function toggleItem(el) {
+  el.classList.toggle('expanded');
+}
+
+function filterTimeline(btn, cat) {
+  document.querySelectorAll('.tl-filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTasks(currentTasks, cat);
+}
+
+function toggleException(exId, checked) {
+  currentExceptions[exId] = checked;
+  // Re-render
+  const activeFilter = document.querySelector('.tl-filter-btn.active');
+  const cat = activeFilter ? activeFilter.textContent : '전체';
+  renderTasks(currentTasks, cat);
+}
+
+// ═══════════════════════════════════════════════
+// LAW CHECK - Claude API + Web Search
+// ═══════════════════════════════════════════════
+
+let lawCheckRunning = false;
+
+async function runLawCheck() {
+  if (lawCheckRunning) return;
+  lawCheckRunning = true;
+
+  const btn = document.getElementById('law-check-btn');
+  const btnText = document.getElementById('law-check-btn-text');
+  const spinner = document.getElementById('law-check-spinner');
+  const statusBar = document.getElementById('law-status-bar');
+  const resultsDiv = document.getElementById('law-results');
+  const resultsContent = document.getElementById('law-results-content');
+
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+  btnText.textContent = '검색 중...';
+
+  statusBar.innerHTML = '<span style="color:var(--accent)">AI가 최신 법령 개정사항을 검색하고 있습니다...</span>';
+
+  resultsDiv.style.display = 'block';
+  resultsContent.innerHTML = `
+    <div class="ai-progress" id="ai-progress">
+      <div class="ai-progress-step active" id="prog-search"><div class="ai-progress-dot"></div>주총 관련 법령 개정사항 웹 검색 중...</div>
+      <div class="ai-progress-step pending" id="prog-analyze"><div class="ai-progress-dot"></div>검색 결과 분석 대기 중</div>
+      <div class="ai-progress-step pending" id="prog-compare"><div class="ai-progress-dot"></div>시스템 내장 데이터와 비교 대기 중</div>
+    </div>`;
+
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
+
+  const systemPrompt = `당신은 한국 상법, 외감법, 자본시장법, 공정거래법 전문가입니다. 주어진 검색 결과를 바탕으로, 정기주주총회 실무에 영향을 미치는 법령 개정사항을 분석하세요.
+
+반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트나 마크다운을 포함하지 마세요.
+
+{
+  "search_date": "${dateStr}",
+  "items": [
+    {
+      "title": "개정사항 제목",
+      "law": "법령명 및 조문 번호",
+      "status": "enacted 또는 upcoming",
+      "effective_date": "시행일",
+      "summary": "핵심 내용 2~3문장",
+      "agm_impact": "정기주총 실무에 미치는 영향 1~2문장",
+      "is_new": true 또는 false
+    }
+  ],
+  "conclusion": "전체 요약 1~2문장"
+}
+
+is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 false, 새로운 사항이면 true.
+
+내장 데이터(시스템 최종 반영일: 2026.3.24.):
+- 1차 개정 상법(2025.7.22.): 이사 충실의무 확대, 외관대표이사, 간이영업양도
+- 1차 개정 유예(2026.7.23.): 독립이사 제도, 합산 3%룰
+- 2차 개정 상법(2026.9.10.): 집중투표제 의무화, 감사위원 분리선출 2명
+- 3차 개정 상법(2026.3.6.): 자기주식 소각 의무화
+- 배당기준일 유연화(2023), 지점등기 폐지(2024)`;
+
+  const userPrompt = `오늘은 ${dateStr}입니다. 2025~2026년 한국 상법, 외감법, 자본시장법, 공정거래법 중 정기주주총회 실무에 영향을 미치는 개정사항을 모두 찾아서 정리해 주세요. 특히:
+1. 이미 시행 중인 개정사항
+2. 시행 예정인 개정사항
+3. 국회 계류 중이거나 입법예고 중인 사항
+4. 최근 법무부 유권해석이나 금감원 가이드라인
+
+각 항목별로 정기주총 준비에 어떤 영향을 미치는지 구체적으로 설명해 주세요.`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system: systemPrompt,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+
+    // Update progress
+    document.getElementById('prog-search').className = 'ai-progress-step done';
+    document.getElementById('prog-search').querySelector('.ai-progress-dot').style = '';
+    document.getElementById('prog-analyze').className = 'ai-progress-step active';
+
+    const data = await response.json();
+
+    document.getElementById('prog-analyze').className = 'ai-progress-step done';
+    document.getElementById('prog-analyze').querySelector('.ai-progress-dot').style = '';
+    document.getElementById('prog-compare').className = 'ai-progress-step active';
+
+    // Extract text from response
+    let fullText = '';
+    if (data.content) {
+      fullText = data.content
+        .filter(b => b.type === 'text')
+        .map(b => b.text)
+        .join('\n');
+    }
+
+    document.getElementById('prog-compare').className = 'ai-progress-step done';
+    document.getElementById('prog-compare').querySelector('.ai-progress-dot').style = '';
+
+    // Try to parse JSON
+    let parsed = null;
+    try {
+      const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+    } catch(e) { /* parse failed, use raw text */ }
+
+    if (parsed && parsed.items && parsed.items.length > 0) {
+      const newCount = parsed.items.filter(i => i.is_new).length;
+      const knownCount = parsed.items.filter(i => !i.is_new).length;
+
+      if (newCount > 0) {
+        statusBar.innerHTML = `<span style="color:var(--red)"><strong>&#9888; 새로운 개정사항 ${newCount}건 발견</strong> &mdash; 아래 결과를 확인하고 시스템 업데이트 필요 여부를 검토하세요.</span>`;
+      } else {
+        statusBar.innerHTML = `<span style="color:var(--green)"><strong>&#10003; 추가 개정사항 없음</strong> &mdash; 시스템 내장 데이터가 최신 상태입니다. (확인: ${parsed.items.length}건 검토)</span>`;
+      }
+
+      let cardsHtml = '';
+      // Show new items first
+      const sorted = [...parsed.items].sort((a,b) => (b.is_new?1:0) - (a.is_new?1:0));
+      sorted.forEach((item, i) => {
+        const cls = item.is_new ? 'ai-new' : 'ai-known';
+        const badge = item.is_new
+          ? '<span class="ai-result-badge new-badge">신규 확인 필요</span>'
+          : '<span class="ai-result-badge known-badge">반영 완료</span>';
+        const statusBadge = item.status === 'enacted'
+          ? '<span class="law-badge enacted" style="font-size:9px;padding:1px 6px">시행중</span>'
+          : '<span class="law-badge upcoming" style="font-size:9px;padding:1px 6px">시행예정</span>';
+
+        cardsHtml += `
+          <div class="ai-result-card ${cls}" onclick="this.classList.toggle('open')">
+            <div class="ai-result-header">
+              ${badge} ${statusBadge}
+              <span class="ai-result-title">${item.title}</span>
+              <span style="color:var(--text3);font-size:11px">${item.effective_date||''}</span>
+            </div>
+            <div class="ai-result-body">
+              <div style="margin-bottom:8px"><strong>법령:</strong> ${item.law||''}</div>
+              <div style="margin-bottom:8px"><strong>내용:</strong> ${item.summary||''}</div>
+              <div><strong>주총 영향:</strong> ${item.agm_impact||''}</div>
+            </div>
+          </div>`;
+      });
+
+      if (parsed.conclusion) {
+        cardsHtml += `<div style="margin-top:12px;padding:12px 14px;background:var(--surface2);border-radius:var(--radius);font-size:13px;color:var(--text2);line-height:1.6"><strong>종합 판단:</strong> ${parsed.conclusion}</div>`;
+      }
+
+      resultsContent.innerHTML = cardsHtml;
+    } else {
+      // Fallback: show raw text
+      statusBar.innerHTML = '<span style="color:var(--green)"><strong>&#10003; 검색 완료</strong> &mdash; 아래 결과를 확인하세요.</span>';
+      resultsContent.innerHTML = `<div style="padding:16px;background:var(--surface2);border-radius:var(--radius);font-size:13px;color:var(--text2);line-height:1.7;white-space:pre-wrap">${fullText || '검색 결과를 표시할 수 없습니다. 네트워크를 확인해 주세요.'}</div>`;
+    }
+
+  } catch (err) {
+    statusBar.innerHTML = `<span style="color:var(--red)"><strong>&#9888; 검색 실패</strong> &mdash; ${err.message}. 네트워크 연결을 확인하고 다시 시도하세요.</span>`;
+    resultsContent.innerHTML = `<div style="padding:16px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);font-size:13px;color:var(--red)">API 호출 중 오류가 발생했습니다: ${err.message}<br>인터넷 연결 상태를 확인하고, 잠시 후 다시 시도해 주세요.</div>`;
+  }
+
+  // Restore button
+  btn.disabled = false;
+  spinner.style.display = 'none';
+  btnText.textContent = '다시 검색';
+  document.getElementById('law-check-time').textContent = `마지막 검색: ${new Date().toLocaleString('ko-KR')}`;
+  lawCheckRunning = false;
+}
+
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+
+// Set default dates
+(function(){
+  const now = new Date();
+  const year = now.getFullYear();
+  // Default FY end: last Dec 31
+  document.getElementById('pf-fy-date').value = `${year-1}-12-31`;
+  // Default AGM: Mar 27 of current year
+  const agmMonth = '03';
+  const agmDay = '27';
+  document.getElementById('pf-agm-date').value = `${year}-${agmMonth}-${agmDay}`;
+  initAgenda();
+})();
