@@ -1,5 +1,4 @@
 // ═══ CompliFlow 앱 로직 ═══
-// 이 파일은 UI 로직을 담당합니다. 데이터 수정 시에는 data/ 폴더의 파일을 수정하세요.
 
 // ═══════════════════════════════════════════════
 // MODAL RENDERING
@@ -41,11 +40,11 @@ function openProcessModal(taskId) {
       html += '<div class="proc-docs">';
       sec.items.forEach(doc => {
         const whoMap = {
-          company: { label: '회사', cls: 'who-company' },
-          director: { label: '이사/감사', cls: 'who-director' },
-          shareholder: { label: '주주', cls: 'who-shareholder' },
-          lawfirm: { label: '법무사/법무법인', cls: 'who-lawfirm' },
-          auditor: { label: '감사인/회계법인', cls: 'who-auditor' },
+          company:    { label: '회사',          cls: 'who-company' },
+          director:   { label: '이사/감사',     cls: 'who-director' },
+          shareholder:{ label: '주주',          cls: 'who-shareholder' },
+          lawfirm:    { label: '법무사/법무법인',cls: 'who-lawfirm' },
+          auditor:    { label: '감사인/회계법인',cls: 'who-auditor' },
         };
         const w = whoMap[doc.who] || { label: doc.who, cls: 'who-company' };
         html += `
@@ -104,13 +103,11 @@ function calcDate(task, pf, exceptions = {}) {
   }
   let offset = task.dOffset;
 
-  // Apply exception toggles that modify dates
   if (task.exceptionToggle && exceptions[task.exceptionToggle.id]) {
     if (task.exceptionToggle.shortDays) {
       offset += task.exceptionToggle.shortDays;
     }
   }
-  // Short notice exception affects the notice task
   if (task.id === 't13' && exceptions['ex_short_notice']) {
     offset = -10;
   }
@@ -140,7 +137,7 @@ function refDayLabel(task, exceptions) {
   }
   if (task.id === 't13' && exceptions && exceptions['ex_short_notice']) offset = -10;
 
-  const code = base; // 'R' or 'D'
+  const code = base;
   if (offset === 0) return `${code}-Day`;
   if (offset > 0) return `${code}+${offset}`;
   return `${code}${offset}`;
@@ -157,6 +154,81 @@ function todayDday(d) {
   return `${Math.abs(diff)}일 전`;
 }
 
+
+// ═══════════════════════════════════════════════
+// MEETING TYPE UI
+// ═══════════════════════════════════════════════
+
+const MEETING_TYPE_META = {
+  agm: {
+    hint: '정기주총: 사업연도 종료 후 3개월 이내 개최. 재무제표 승인, 임원선임 등 연간 법정 의결 처리.',
+    dateLabel: '정기주총 예정일',
+    dateHint: '이사회 결의 후 확정 (예: 2026-03-27)',
+    fyLabel: '결산일',
+    fyHint: '사업연도 말일 (예: 2025-12-31)',
+    agendaTitle: '정기주총 안건 설정',
+    agendaDesc: '이번 정기주총에서 처리할 안건을 선택하세요. 선택한 안건에 따라 추가 업무와 후속 절차가 자동으로 반영됩니다.',
+    timelineTitle: '정기주주총회 업무 타임라인',
+    dDayLabel: '주총일 (D-day)',
+    rDayLabel: '결산일 (Reference)',
+  },
+  egm: {
+    hint: '임시주총: 긴급 안건(정관 변경, 임원 선임 등) 처리를 위해 수시 소집. 공고·통지 절차는 정기주총과 동일.',
+    dateLabel: '임시주총 예정일',
+    dateHint: '이사회 소집결의 후 확정',
+    fyLabel: '최근 결산일 (세무 일정 계산용)',
+    fyHint: '직전 사업연도 말일 (예: 2025-12-31)',
+    agendaTitle: '임시주총 안건 설정',
+    agendaDesc: '임시주주총회에서 처리할 안건을 선택하세요. 재무제표 승인은 임시주총 대상이 아닙니다.',
+    timelineTitle: '임시주주총회 업무 타임라인',
+    dDayLabel: '임시주총일 (D-day)',
+    rDayLabel: '최근 결산일 (R)',
+  },
+  bod: {
+    hint: '이사회만: 주주총회 없이 이사회 결의만으로 처리 가능한 사항. 대표이사 선임, 자기거래 승인, 중요 계약 등.',
+    dateLabel: '이사회 예정일',
+    dateHint: '이사회 개최 예정일',
+    fyLabel: '최근 결산일 (세무 일정 계산용, 선택)',
+    fyHint: '직전 사업연도 말일 (선택사항)',
+    agendaTitle: '이사회 안건 설정',
+    agendaDesc: '이번 이사회에서 처리할 안건을 선택하세요.',
+    timelineTitle: '이사회 업무 타임라인',
+    dDayLabel: '이사회일 (D-day)',
+    rDayLabel: '최근 결산일 (R)',
+  },
+};
+
+function getMeetingType() {
+  return getOptValue('pf-meeting-type') || 'agm';
+}
+
+function updateMeetingTypeUI() {
+  const mt = getMeetingType();
+  const meta = MEETING_TYPE_META[mt];
+
+  // Hint text
+  document.getElementById('meeting-type-hint').textContent = meta.hint;
+
+  // Date labels
+  document.getElementById('meeting-date-label').innerHTML = `${meta.dateLabel} <span class="required">*</span>`;
+  document.getElementById('meeting-date-hint').textContent = meta.dateHint;
+  document.getElementById('fy-date-label').innerHTML = mt === 'bod'
+    ? `${meta.fyLabel}`
+    : `${meta.fyLabel} <span class="required">*</span>`;
+  document.getElementById('fy-date-hint').textContent = meta.fyHint;
+
+  // Agenda section visibility
+  const isBOD = mt === 'bod';
+  const isGSM = !isBOD;
+  document.getElementById('agenda-gsm-ordinary-section').style.display = isGSM ? '' : 'none';
+  document.getElementById('agenda-gsm-special-section').style.display  = isGSM ? '' : 'none';
+  // BOD section: always visible
+
+  // Re-render agenda to handle agmOnly items
+  initAgenda();
+}
+
+
 // ═══════════════════════════════════════════════
 // UI LOGIC
 // ═══════════════════════════════════════════════
@@ -168,8 +240,15 @@ let currentProfile = {};
 
 function goStep(n) {
   if (n === 2) {
-    const requiredFields = ['pf-listing','pf-audit','pf-type','pf-asset','pf-auditor-type'];
-    for (const field of requiredFields) {
+    const mt = getMeetingType();
+    const isBOD = mt === 'bod';
+
+    // Required profile fields
+    const alwaysRequired = ['pf-listing', 'pf-type', 'pf-asset'];
+    const gsmRequired    = ['pf-audit', 'pf-auditor-type'];
+    const required = isBOD ? alwaysRequired : [...alwaysRequired, ...gsmRequired];
+
+    for (const field of required) {
       if (!getOptValue(field)) {
         const group = document.querySelector(`.opt-group[data-field="${field}"]`);
         if (group) group.style.outline = '2px solid var(--red)';
@@ -178,11 +257,22 @@ function goStep(n) {
         return;
       }
     }
-    if (!document.getElementById('pf-fy-date').value || !document.getElementById('pf-agm-date').value) {
-      alert('결산일과 주총 예정일을 입력해주세요.');
+
+    const meetingDate = document.getElementById('pf-agm-date').value;
+    const fyDate = document.getElementById('pf-fy-date').value;
+    if (!meetingDate) {
+      alert(`${MEETING_TYPE_META[mt].dateLabel}을 입력해주세요.`);
       return;
     }
+    if (!isBOD && !fyDate) {
+      alert('결산일을 입력해주세요.');
+      return;
+    }
+
+    // Refresh agenda rendering with current meeting type
+    initAgenda();
   }
+
   currentStep = n;
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-'+n).classList.add('active');
@@ -197,13 +287,41 @@ function goStep(n) {
 
 // Initialize agenda checkboxes
 function initAgenda() {
-  renderCheckboxGroup('agenda-basic', AGENDA_BASIC);
-  renderCheckboxGroup('agenda-special', AGENDA_SPECIAL);
-  renderCheckboxGroup('agenda-others', AGENDA_OTHERS);
+  const mt = getMeetingType();
+  const meta = MEETING_TYPE_META[mt];
+  const isBOD = mt === 'bod';
+  const isEGM = mt === 'egm';
+
+  // Update Step 2 texts
+  const titleEl = document.getElementById('agenda-step-title');
+  const descEl  = document.getElementById('agenda-step-desc');
+  if (titleEl) titleEl.textContent = meta.agendaTitle;
+  if (descEl)  descEl.textContent  = meta.agendaDesc;
+
+  // Section visibility
+  document.getElementById('agenda-gsm-ordinary-section').style.display = isBOD ? 'none' : '';
+  document.getElementById('agenda-gsm-special-section').style.display  = isBOD ? 'none' : '';
+  document.getElementById('agenda-bod-section').style.display = 'block';
+
+  // BOD agendas (always rendered)
+  renderCheckboxGroup('agenda-bod', AGENDA_BOD);
+
+  // GSM agendas (filtered for EGM: agmOnly items not forced-checked)
+  if (!isBOD) {
+    const ordinaryItems = AGENDA_GSM_ORDINARY.map(item => {
+      if (item.agmOnly && isEGM) {
+        return { ...item, checked: false, always: false };
+      }
+      return item;
+    });
+    renderCheckboxGroup('agenda-gsm-ordinary', ordinaryItems);
+    renderCheckboxGroup('agenda-gsm-special', AGENDA_GSM_SPECIAL);
+  }
 }
 
 function renderCheckboxGroup(containerId, items) {
   const el = document.getElementById(containerId);
+  if (!el) return;
   el.innerHTML = items.map(it => `
     <label class="checkbox-item ${it.checked?'checked':''}" data-id="${it.id}">
       <input type="checkbox" ${it.checked?'checked':''} ${it.always?'disabled':''} value="${it.id}" onchange="this.parentElement.classList.toggle('checked',this.checked)">
@@ -234,56 +352,69 @@ function getOptValue(field) {
 }
 
 function getProfile() {
+  const mt = getMeetingType();
+  const fyDate = document.getElementById('pf-fy-date').value;
   return {
-    listing: getOptValue('pf-listing'),
-    audit: getOptValue('pf-audit'),
-    type: getOptValue('pf-type'),
-    asset: getOptValue('pf-asset'),
-    fy: getOptValue('pf-fy'),
+    meetingType: mt,
+    listing:     getOptValue('pf-listing'),
+    audit:       getOptValue('pf-audit'),
+    type:        getOptValue('pf-type'),
+    asset:       getOptValue('pf-asset'),
+    fy:          getOptValue('pf-fy'),
     auditorType: getOptValue('pf-auditor-type'),
-    conglomerate: getOptValue('pf-conglomerate'),
-    holding: getOptValue('pf-holding'),
-    finance: getOptValue('pf-finance'),
-    foreign: getOptValue('pf-foreign'),
-    fyDate: document.getElementById('pf-fy-date').value,
-    agmDate: document.getElementById('pf-agm-date').value,
+    conglomerate:getOptValue('pf-conglomerate'),
+    holding:     getOptValue('pf-holding'),
+    finance:     getOptValue('pf-finance'),
+    foreign:     getOptValue('pf-foreign'),
+    fyDate:      fyDate || document.getElementById('pf-agm-date').value, // fallback for BOD mode
+    agmDate:     document.getElementById('pf-agm-date').value,
   };
 }
 
 function generateTimeline() {
-  currentProfile = getProfile();
-  const agendas = getSelectedAgendas();
+  currentProfile  = getProfile();
+  const agendas   = getSelectedAgendas();
   currentExceptions = {};
-  currentTasks = buildTasks(currentProfile, agendas);
+  currentTasks    = buildTasks(currentProfile, agendas);
   goStep(3);
   renderTimeline();
 }
 
 function renderTimeline() {
-  const pf = currentProfile;
+  const pf   = currentProfile;
   const tasks = currentTasks;
+  const mt   = pf.meetingType || 'agm';
+  const meta = MEETING_TYPE_META[mt];
+
+  // Step 3 title
+  const tlTitle = document.getElementById('timeline-step-title');
+  if (tlTitle) tlTitle.textContent = meta.timelineTitle;
 
   // Profile summary
   const labels = {
-    listing:{kospi:'코스피 상장',kosdaq:'코스닥 상장',private:'비상장'},
-    audit:{yes:'외감 대상',no:'외감 비대상'},
-    asset:{under100b:'1천억 미만','100b-2t':'1천억~2조',over2t:'2조 이상'},
-    auditorType:{auditor:'감사',committee:'감사위원회'},
-    conglomerate:{yes:'대규모기업집단',no:'비소속'},
+    listing:     { kospi:'코스피 상장', kosdaq:'코스닥 상장', private:'비상장' },
+    audit:       { yes:'외감 대상', no:'외감 비대상' },
+    asset:       { under100b:'1천억 미만', '100b-2t':'1천억~2조', over2t:'2조 이상' },
+    auditorType: { auditor:'감사', committee:'감사위원회' },
+    meetingType: { agm:'정기주주총회', egm:'임시주주총회', bod:'이사회' },
   };
-  const summaryEl = document.getElementById('profile-summary');
-  summaryEl.innerHTML = [
-    {l:'상장 여부',v:labels.listing[pf.listing]},
-    {l:'외감 대상',v:labels.audit[pf.audit]},
-    {l:'자산 규모',v:labels.asset[pf.asset]},
-    {l:'감사기구',v:labels.auditorType[pf.auditorType]},
-    {l:'결산일',v:pf.fyDate},
-    {l:'주총 예정일',v:pf.agmDate},
-  ].map(s=>`<div class="summary-item"><div class="si-label">${s.l}</div><div class="si-value">${s.v}</div></div>`).join('');
+
+  const summaryItems = [
+    { l:'회의 유형',  v: labels.meetingType[mt] || mt },
+    { l:'상장 여부',  v: labels.listing[pf.listing] || '-' },
+    { l:'자산 규모',  v: labels.asset[pf.asset] || '-' },
+    { l:'감사기구',   v: labels.auditorType[pf.auditorType] || '-' },
+    { l:'결산일',     v: pf.fyDate || '-' },
+    { l: mt === 'bod' ? '이사회 예정일' : mt === 'egm' ? '임시주총 예정일' : '주총 예정일', v: pf.agmDate },
+  ];
+
+  document.getElementById('profile-summary').innerHTML = summaryItems
+    .map(s => `<div class="summary-item"><div class="si-label">${s.l}</div><div class="si-value">${s.v}</div></div>`)
+    .join('');
 
   // Reference day legend
   const refLegend = document.getElementById('ref-day-legend');
-  if(refLegend) refLegend.remove();
+  if (refLegend) refLegend.remove();
   const legendEl = document.createElement('div');
   legendEl.id = 'ref-day-legend';
   legendEl.innerHTML = `
@@ -293,28 +424,26 @@ function renderTimeline() {
         <div class="ref-legend-item">
           <span class="ref-code ref-R">R</span>
           <div>
-            <div class="ref-name">결산일 (Reference date)</div>
-            <div class="ref-date">${formatDate(new Date(pf.fyDate))}</div>
+            <div class="ref-name">${meta.rDayLabel}</div>
+            <div class="ref-date">${pf.fyDate ? formatDate(new Date(pf.fyDate)) : '-'}</div>
           </div>
         </div>
         <div class="ref-legend-item">
           <span class="ref-code ref-D">D</span>
           <div>
-            <div class="ref-name">주총일 (D-day)</div>
+            <div class="ref-name">${meta.dDayLabel}</div>
             <div class="ref-date">${formatDate(new Date(pf.agmDate))}</div>
           </div>
         </div>
       </div>
-      <div class="ref-legend-help">각 업무의 기한은 기준일로부터의 상대일수로 표기됩니다. 예) R+90 = 결산일로부터 90일 후, D-14 = 주총일 14일 전</div>
+      <div class="ref-legend-help">각 업무의 기한은 기준일로부터의 상대일수로 표기됩니다. 예) R+90 = 결산일로부터 90일 후, D-14 = 주총·이사회일 14일 전</div>
     </div>
   `;
   document.getElementById('profile-summary').after(legendEl);
 
   // Stats
-  const total = tasks.length;
-  const categories = [...new Set(tasks.map(t=>t.category))];
   document.getElementById('stat-bar').innerHTML = `
-    <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-label">전체 업무</div></div>
+    <div class="stat-box"><div class="stat-num">${tasks.length}</div><div class="stat-label">전체 업무</div></div>
     <div class="stat-box"><div class="stat-num">${tasks.filter(t=>t.tags.includes('필수')).length}</div><div class="stat-label">필수 업무</div></div>
     <div class="stat-box"><div class="stat-num">${tasks.filter(t=>t.tags.includes('등기')).length}</div><div class="stat-label">등기 사항</div></div>
     <div class="stat-box"><div class="stat-num">${tasks.filter(t=>t.tags.includes('공시')).length}</div><div class="stat-label">공시 사항</div></div>
@@ -322,18 +451,19 @@ function renderTimeline() {
   `;
 
   // Filter buttons
-  const allCats = ['전체',...categories];
-  const filterEl = document.getElementById('tl-filter');
-  filterEl.innerHTML = allCats.map(c=>`<button class="tl-filter-btn ${c==='전체'?'active':''}" onclick="filterTimeline(this,'${c}')">${c}</button>`).join('');
+  const categories = [...new Set(tasks.map(t => t.category))];
+  const allCats = ['전체', ...categories];
+  document.getElementById('tl-filter').innerHTML = allCats
+    .map(c => `<button class="tl-filter-btn ${c==='전체'?'active':''}" onclick="filterTimeline(this,'${c}')">${c}</button>`)
+    .join('');
 
   renderTasks(tasks);
 }
 
 function renderTasks(tasks, filterCat='전체') {
-  const pf = currentProfile;
+  const pf   = currentProfile;
   const tlEl = document.getElementById('timeline');
 
-  // Group by month
   const groups = {};
   tasks.forEach(t => {
     if (filterCat !== '전체' && t.category !== filterCat) return;
@@ -427,18 +557,18 @@ function toggleItem(el) {
 }
 
 function filterTimeline(btn, cat) {
-  document.querySelectorAll('.tl-filter-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tl-filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderTasks(currentTasks, cat);
 }
 
 function toggleException(exId, checked) {
   currentExceptions[exId] = checked;
-  // Re-render
   const activeFilter = document.querySelector('.tl-filter-btn.active');
   const cat = activeFilter ? activeFilter.textContent : '전체';
   renderTasks(currentTasks, cat);
 }
+
 
 // ═══════════════════════════════════════════════
 // LAW CHECK - Claude API + Web Search
@@ -450,23 +580,22 @@ async function runLawCheck() {
   if (lawCheckRunning) return;
   lawCheckRunning = true;
 
-  const btn = document.getElementById('law-check-btn');
-  const btnText = document.getElementById('law-check-btn-text');
-  const spinner = document.getElementById('law-check-spinner');
-  const statusBar = document.getElementById('law-status-bar');
-  const resultsDiv = document.getElementById('law-results');
+  const btn         = document.getElementById('law-check-btn');
+  const btnText     = document.getElementById('law-check-btn-text');
+  const spinner     = document.getElementById('law-check-spinner');
+  const statusBar   = document.getElementById('law-status-bar');
+  const resultsDiv  = document.getElementById('law-results');
   const resultsContent = document.getElementById('law-results-content');
 
   btn.disabled = true;
   spinner.style.display = 'inline-block';
   btnText.textContent = '검색 중...';
-
   statusBar.innerHTML = '<span style="color:var(--accent)">AI가 최신 법령 개정사항을 검색하고 있습니다...</span>';
 
   resultsDiv.style.display = 'block';
   resultsContent.innerHTML = `
     <div class="ai-progress" id="ai-progress">
-      <div class="ai-progress-step active" id="prog-search"><div class="ai-progress-dot"></div>주총 관련 법령 개정사항 웹 검색 중...</div>
+      <div class="ai-progress-step active" id="prog-search"><div class="ai-progress-dot"></div>주총·이사회 관련 법령 개정사항 웹 검색 중...</div>
       <div class="ai-progress-step pending" id="prog-analyze"><div class="ai-progress-dot"></div>검색 결과 분석 대기 중</div>
       <div class="ai-progress-step pending" id="prog-compare"><div class="ai-progress-dot"></div>시스템 내장 데이터와 비교 대기 중</div>
     </div>`;
@@ -474,7 +603,7 @@ async function runLawCheck() {
   const today = new Date();
   const dateStr = `${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
 
-  const systemPrompt = `당신은 한국 상법, 외감법, 자본시장법, 공정거래법 전문가입니다. 주어진 검색 결과를 바탕으로, 정기주주총회 실무에 영향을 미치는 법령 개정사항을 분석하세요.
+  const systemPrompt = `당신은 한국 상법, 외감법, 자본시장법, 공정거래법 전문가입니다. 주어진 검색 결과를 바탕으로, 주주총회 및 이사회 실무에 영향을 미치는 법령 개정사항을 분석하세요.
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트나 마크다운을 포함하지 마세요.
 
@@ -487,7 +616,7 @@ async function runLawCheck() {
       "status": "enacted 또는 upcoming",
       "effective_date": "시행일",
       "summary": "핵심 내용 2~3문장",
-      "agm_impact": "정기주총 실무에 미치는 영향 1~2문장",
+      "agm_impact": "주총·이사회 실무에 미치는 영향 1~2문장",
       "is_new": true 또는 false
     }
   ],
@@ -503,13 +632,13 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
 - 3차 개정 상법(2026.3.6.): 자기주식 소각 의무화
 - 배당기준일 유연화(2023), 지점등기 폐지(2024)`;
 
-  const userPrompt = `오늘은 ${dateStr}입니다. 2025~2026년 한국 상법, 외감법, 자본시장법, 공정거래법 중 정기주주총회 실무에 영향을 미치는 개정사항을 모두 찾아서 정리해 주세요. 특히:
+  const userPrompt = `오늘은 ${dateStr}입니다. 2025~2026년 한국 상법, 외감법, 자본시장법, 공정거래법 중 주주총회 및 이사회 실무에 영향을 미치는 개정사항을 모두 찾아서 정리해 주세요. 특히:
 1. 이미 시행 중인 개정사항
 2. 시행 예정인 개정사항
 3. 국회 계류 중이거나 입법예고 중인 사항
 4. 최근 법무부 유권해석이나 금감원 가이드라인
 
-각 항목별로 정기주총 준비에 어떤 영향을 미치는지 구체적으로 설명해 주세요.`;
+각 항목별로 주총 및 이사회 준비에 어떤 영향을 미치는지 구체적으로 설명해 주세요.`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -524,39 +653,29 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
       })
     });
 
-    // Update progress
     document.getElementById('prog-search').className = 'ai-progress-step done';
-    document.getElementById('prog-search').querySelector('.ai-progress-dot').style = '';
     document.getElementById('prog-analyze').className = 'ai-progress-step active';
 
     const data = await response.json();
 
     document.getElementById('prog-analyze').className = 'ai-progress-step done';
-    document.getElementById('prog-analyze').querySelector('.ai-progress-dot').style = '';
     document.getElementById('prog-compare').className = 'ai-progress-step active';
 
-    // Extract text from response
     let fullText = '';
     if (data.content) {
-      fullText = data.content
-        .filter(b => b.type === 'text')
-        .map(b => b.text)
-        .join('\n');
+      fullText = data.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
     }
 
     document.getElementById('prog-compare').className = 'ai-progress-step done';
-    document.getElementById('prog-compare').querySelector('.ai-progress-dot').style = '';
 
-    // Try to parse JSON
     let parsed = null;
     try {
       const jsonMatch = fullText.match(/\{[\s\S]*\}/);
       if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-    } catch(e) { /* parse failed, use raw text */ }
+    } catch(e) {}
 
     if (parsed && parsed.items && parsed.items.length > 0) {
-      const newCount = parsed.items.filter(i => i.is_new).length;
-      const knownCount = parsed.items.filter(i => !i.is_new).length;
+      const newCount   = parsed.items.filter(i => i.is_new).length;
 
       if (newCount > 0) {
         statusBar.innerHTML = `<span style="color:var(--red)"><strong>&#9888; 새로운 개정사항 ${newCount}건 발견</strong> &mdash; 아래 결과를 확인하고 시스템 업데이트 필요 여부를 검토하세요.</span>`;
@@ -565,9 +684,8 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
       }
 
       let cardsHtml = '';
-      // Show new items first
       const sorted = [...parsed.items].sort((a,b) => (b.is_new?1:0) - (a.is_new?1:0));
-      sorted.forEach((item, i) => {
+      sorted.forEach(item => {
         const cls = item.is_new ? 'ai-new' : 'ai-known';
         const badge = item.is_new
           ? '<span class="ai-result-badge new-badge">신규 확인 필요</span>'
@@ -575,7 +693,6 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
         const statusBadge = item.status === 'enacted'
           ? '<span class="law-badge enacted" style="font-size:9px;padding:1px 6px">시행중</span>'
           : '<span class="law-badge upcoming" style="font-size:9px;padding:1px 6px">시행예정</span>';
-
         cardsHtml += `
           <div class="ai-result-card ${cls}" onclick="this.classList.toggle('open')">
             <div class="ai-result-header">
@@ -586,28 +703,24 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
             <div class="ai-result-body">
               <div style="margin-bottom:8px"><strong>법령:</strong> ${item.law||''}</div>
               <div style="margin-bottom:8px"><strong>내용:</strong> ${item.summary||''}</div>
-              <div><strong>주총 영향:</strong> ${item.agm_impact||''}</div>
+              <div><strong>주총·이사회 영향:</strong> ${item.agm_impact||''}</div>
             </div>
           </div>`;
       });
-
       if (parsed.conclusion) {
         cardsHtml += `<div style="margin-top:12px;padding:12px 14px;background:var(--surface2);border-radius:var(--radius);font-size:13px;color:var(--text2);line-height:1.6"><strong>종합 판단:</strong> ${parsed.conclusion}</div>`;
       }
-
       resultsContent.innerHTML = cardsHtml;
     } else {
-      // Fallback: show raw text
       statusBar.innerHTML = '<span style="color:var(--green)"><strong>&#10003; 검색 완료</strong> &mdash; 아래 결과를 확인하세요.</span>';
       resultsContent.innerHTML = `<div style="padding:16px;background:var(--surface2);border-radius:var(--radius);font-size:13px;color:var(--text2);line-height:1.7;white-space:pre-wrap">${fullText || '검색 결과를 표시할 수 없습니다. 네트워크를 확인해 주세요.'}</div>`;
     }
 
   } catch (err) {
-    statusBar.innerHTML = `<span style="color:var(--red)"><strong>&#9888; 검색 실패</strong> &mdash; ${err.message}. 네트워크 연결을 확인하고 다시 시도하세요.</span>`;
-    resultsContent.innerHTML = `<div style="padding:16px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);font-size:13px;color:var(--red)">API 호출 중 오류가 발생했습니다: ${err.message}<br>인터넷 연결 상태를 확인하고, 잠시 후 다시 시도해 주세요.</div>`;
+    statusBar.innerHTML = `<span style="color:var(--red)"><strong>&#9888; 검색 실패</strong> &mdash; ${err.message}</span>`;
+    resultsContent.innerHTML = `<div style="padding:16px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);font-size:13px;color:var(--red)">API 호출 중 오류: ${err.message}</div>`;
   }
 
-  // Restore button
   btn.disabled = false;
   spinner.style.display = 'none';
   btnText.textContent = '다시 검색';
@@ -615,19 +728,15 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
   lawCheckRunning = false;
 }
 
+
 // ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
 
-// Set default dates
 (function(){
-  const now = new Date();
+  const now  = new Date();
   const year = now.getFullYear();
-  // Default FY end: last Dec 31
-  document.getElementById('pf-fy-date').value = `${year-1}-12-31`;
-  // Default AGM: Mar 27 of current year
-  const agmMonth = '03';
-  const agmDay = '27';
-  document.getElementById('pf-agm-date').value = `${year}-${agmMonth}-${agmDay}`;
+  document.getElementById('pf-fy-date').value  = `${year-1}-12-31`;
+  document.getElementById('pf-agm-date').value = `${year}-03-27`;
   initAgenda();
 })();
