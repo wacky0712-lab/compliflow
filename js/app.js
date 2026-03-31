@@ -108,10 +108,6 @@ function calcDate(task, pf, exceptions = {}) {
       offset += task.exceptionToggle.shortDays;
     }
   }
-  if (task.id === 't13' && exceptions['ex_short_notice']) {
-    offset = -10;
-  }
-
   const d = new Date(base);
   d.setDate(d.getDate() + offset);
   return d;
@@ -135,8 +131,6 @@ function refDayLabel(task, exceptions) {
   if (task.exceptionToggle && exceptions && exceptions[task.exceptionToggle.id]) {
     if (task.exceptionToggle.shortDays) offset += task.exceptionToggle.shortDays;
   }
-  if (task.id === 't13' && exceptions && exceptions['ex_short_notice']) offset = -10;
-
   const code = base;
   if (offset === 0) return `${code}-Day`;
   if (offset > 0) return `${code}+${offset}`;
@@ -888,6 +882,6 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
     document.getElementById('api-key-input').value = savedKey;
   }
 
-  updateScheduleHints();
-  initAgenda();
+  // 페이지 로드 시 회의 유형 UI 초기화 (gsm-schedule-group 표시 등)
+  updateMeetingTypeUI();
 })();
