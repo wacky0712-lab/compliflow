@@ -571,6 +571,31 @@ function toggleException(exId, checked) {
 
 
 // ═══════════════════════════════════════════════
+// API KEY MANAGEMENT
+// ═══════════════════════════════════════════════
+
+function saveApiKey(value) {
+  localStorage.setItem('cf_api_key', value.trim());
+}
+
+function loadApiKey() {
+  return localStorage.getItem('cf_api_key') || '';
+}
+
+function toggleApiKeyVisibility() {
+  const input  = document.getElementById('api-key-input');
+  const btn    = document.getElementById('api-key-toggle');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '숨기기';
+  } else {
+    input.type = 'password';
+    btn.textContent = '표시';
+  }
+}
+
+
+// ═══════════════════════════════════════════════
 // LAW CHECK - Claude API + Web Search
 // ═══════════════════════════════════════════════
 
@@ -640,10 +665,25 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
 
 각 항목별로 주총 및 이사회 준비에 어떤 영향을 미치는지 구체적으로 설명해 주세요.`;
 
+  const apiKey = loadApiKey();
+  if (!apiKey) {
+    statusBar.innerHTML = '<span style="color:var(--red)"><strong>&#9888; API 키 없음</strong> &mdash; 위 입력란에 Anthropic API Key를 입력해주세요.</span>';
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    btnText.textContent = '법령 개정사항 검색';
+    lawCheckRunning = false;
+    return;
+  }
+
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 4000,
@@ -738,5 +778,12 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
   const year = now.getFullYear();
   document.getElementById('pf-fy-date').value  = `${year-1}-12-31`;
   document.getElementById('pf-agm-date').value = `${year}-03-27`;
+
+  // 저장된 API 키 복원
+  const savedKey = loadApiKey();
+  if (savedKey) {
+    document.getElementById('api-key-input').value = savedKey;
+  }
+
   initAgenda();
 })();

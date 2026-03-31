@@ -26,6 +26,21 @@
 <h2>현행 법령 개정사항 확인</h2>
 <p style="color:var(--text2);font-size:13px;margin-bottom:16px">회의 준비 전, 관련 법령의 최신 개정사항을 AI가 실시간으로 검색·확인합니다.</p>
 
+<!-- API Key 입력 -->
+<div style="margin-bottom:16px;padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius)">
+  <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">Anthropic API Key</div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off"
+      style="flex:1;min-width:200px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;font-family:monospace"
+      oninput="saveApiKey(this.value)">
+    <button onclick="toggleApiKeyVisibility()" style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text2);font-size:12px;cursor:pointer" id="api-key-toggle">표시</button>
+  </div>
+  <div style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.5">
+    API 키는 이 브라우저에만 저장되며 외부로 전송되지 않습니다.
+    <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--accent)">Anthropic Console</a>에서 발급할 수 있습니다.
+  </div>
+</div>
+
 <div id="law-status-bar" style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;font-size:13px;color:var(--text2)">
 <span>아래 버튼을 눌러 최신 법령 개정사항을 확인하세요.</span>
 </div>
