@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CompliFlow — 정기주주총회 관리</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+<header>
+<h1>CompliFlow</h1>
+<p>정기주주총회 관리 시스템</p>
+</header>
+
+<div class="steps">
+<div class="step active" data-step="0" onclick="goStep(0)"><div class="step-num">0</div><span>법령 확인</span></div>
+<div class="step" data-step="1" onclick="goStep(1)"><div class="step-num">1</div><span>회사 프로필</span></div>
+<div class="step" data-step="2" onclick="goStep(2)"><div class="step-num">2</div><span>안건 설정</span></div>
+<div class="step" data-step="3" onclick="goStep(3)"><div class="step-num">3</div><span>일정 & 체크리스트</span></div>
+</div>
+
+<!-- ═══ STEP 0: 법령 확인 ═══ -->
+<div class="panel active" id="panel-0">
+<div class="card">
+<h2>현행 법령 개정사항 확인</h2>
+<p style="color:var(--text2);font-size:13px;margin-bottom:16px">정기주총 준비 전, 주총 관련 법령의 최신 개정사항을 AI가 실시간으로 검색·확인합니다.</p>
+
+<div id="law-status-bar" style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;font-size:13px;color:var(--text2)">
+<span>아래 버튼을 눌러 최신 법령 개정사항을 확인하세요.</span>
+</div>
+
+<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+<button class="btn btn-primary" id="law-check-btn" onclick="runLawCheck()" style="display:flex;align-items:center;gap:6px">
+<span id="law-check-spinner" style="display:none;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite"></span>
+<span id="law-check-btn-text">법령 개정사항 검색</span>
+</button>
+<span id="law-check-time" style="font-size:12px;color:var(--text3)"></span>
+</div>
+
+<div id="law-search-scope" style="margin-bottom:16px">
+<div style="font-size:12px;color:var(--text3);margin-bottom:6px">검색 대상 법령</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px">
+<span style="padding:4px 12px;background:var(--accent-light);color:var(--accent);border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--accent)">상법</span>
+<span style="padding:4px 12px;background:var(--surface2);color:var(--text2);border-radius:16px;font-size:12px;border:1px solid var(--border)">외부감사법</span>
+<span style="padding:4px 12px;background:var(--surface2);color:var(--text2);border-radius:16px;font-size:12px;border:1px solid var(--border)">자본시장법</span>
+<span style="padding:4px 12px;background:var(--surface2);color:var(--text2);border-radius:16px;font-size:12px;border:1px solid var(--border)">공정거래법</span>
+<span style="padding:4px 12px;background:var(--surface2);color:var(--text2);border-radius:16px;font-size:12px;border:1px solid var(--border)">상업등기법</span>
+</div>
+</div>
+
+<!-- AI 검색 결과 영역 -->
+<div id="law-results" style="display:none">
+<h3>검색 결과</h3>
+<div id="law-results-content"></div>
+</div>
+
+<!-- 기본 내장 데이터 (항상 표시) -->
+<div id="law-baseline">
+<h3>내장 법령 데이터 (시스템 기준)</h3>
+<div style="font-size:12px;color:var(--text3);margin-bottom:10px">아래는 시스템에 내장된 법령 기준입니다. 위 검색을 통해 추가 개정사항이 있는지 확인하세요.</div>
+<div class="law-timeline">
+
+<div class="law-item law-enacted">
+<div class="law-header">
+<span class="law-badge enacted">시행중</span>
+<span class="law-date">2025. 7. 22. 공포 · 즉시 시행</span>
+</div>
+<div class="law-title">1차 개정 상법 (법률 제20991호)</div>
+<div class="law-body">
+<div class="law-point"><span class="law-dot"></span>이사의 충실의무 대상 확대: 회사 → <strong>회사 및 주주</strong> (제382조의3)</div>
+<div class="law-point"><span class="law-dot"></span>외관대표이사 명칭 변경 (제395조), 간이영업양도 도입 (제374조의3)</div>
+</div>
+</div>
+
+<div class="law-item">
+<div class="law-header">
+<span class="law-badge upcoming">2026. 7. 23. 시행</span>
+</div>
+<div class="law-title">1차 개정 상법 — 유예 항목</div>
+<div class="law-body">
+<div class="law-point"><span class="law-dot accent"></span><strong>독립이사 제도</strong>: 사외이사→독립이사, 의무비율 1/4→<strong>1/3</strong> (제542조의8)</div>
+<div class="law-point"><span class="law-dot accent"></span>감사위원 선임·해임 시 <strong>합산 3%룰 전면 확대</strong> (제542조의12 제4항)</div>
+</div>
+</div>
+
+<div class="law-item">
+<div class="law-header">
+<span class="law-badge upcoming">2026. 9. 10. 시행</span>
+</div>
+<div class="law-title">2차 개정 상법 (법률 제21044호)</div>
+<div class="law-body">
+<div class="law-point"><span class="law-dot accent"></span><strong>집중투표제 의무화</strong> (자산 2조+, 제542조의7)</div>
+<div class="law-point"><span class="law-dot accent"></span><strong>감사위원 분리선출 2명</strong> 확대 (제542조의12 제2항)</div>
+</div>
+</div>
+
+<div class="law-item law-enacted">
+<div class="law-header">
+<span class="law-badge enacted">시행중</span>
+<span class="law-date">2026. 3. 6. 공포 · 즉시 시행</span>
+</div>
+<div class="law-title">3차 개정 상법 — 자기주식 소각 의무화</div>
+<div class="law-body">
+<div class="law-point"><span class="law-dot accent"></span><strong>자기주식 1년 내 소각 원칙</strong> (제341조의4), 기존 보유분 1년6개월 유예</div>
+<div class="law-point"><span class="law-dot accent"></span>주주균등처분 원칙, 담보제공 금지, 위반 시 과태료 5천만원</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div style="margin-top:20px;padding:14px 16px;background:var(--surface2);border-radius:var(--radius);font-size:12px;color:var(--text2);line-height:1.6">
+<strong style="color:var(--text)">면책사항</strong><br>
+본 시스템은 일반적인 법령 정보와 실무 가이드를 제공하며, 구체적 사안에 대한 법률 자문이 아닙니다. AI 검색 결과는 참고용이며, 중요 의사결정 시 반드시 법률전문가의 자문을 받으시기 바랍니다.
+</div>
+
+<div class="btn-group">
+<button class="btn btn-primary" onclick="goStep(1)">확인 완료, 다음으로 &rarr;</button>
+</div>
+</div>
+</div>
+
+<!-- ═══ STEP 1: PROFILE ═══ -->
+<div class="panel" id="panel-1">
+<div class="card">
+<h2>회사 프로필 설정</h2>
+<p style="color:var(--text2);font-size:13px;margin-bottom:16px">회사의 기본 정보를 입력하면 적용되는 법령과 의무사항이 자동으로 필터링됩니다.</p>
+
+<h3>필수 항목</h3>
+<div class="form-grid">
+<div class="form-group">
+<label>상장 여부 <span class="required">*</span></label>
+<div class="opt-group" data-field="pf-listing">
+<button class="opt-btn" data-value="kospi" onclick="selectOpt(this)">코스피 상장</button>
+<button class="opt-btn" data-value="kosdaq" onclick="selectOpt(this)">코스닥 상장</button>
+<button class="opt-btn" data-value="private" onclick="selectOpt(this)">비상장</button>
+</div>
+</div>
+<div class="form-group">
+<label>외감 대상 여부 <span class="required">*</span></label>
+<div class="opt-group" data-field="pf-audit">
+<button class="opt-btn" data-value="yes" onclick="selectOpt(this)">외감 대상</button>
+<button class="opt-btn" data-value="no" onclick="selectOpt(this)">외감 비대상</button>
+</div>
+<div class="form-hint">직전 사업연도 자산 500억 이상 또는 매출 500억 이상 등</div>
+</div>
+<div class="form-group">
+<label>회사 형태 <span class="required">*</span></label>
+<div class="opt-group" data-field="pf-type">
+<button class="opt-btn" data-value="stock" onclick="selectOpt(this)">주식회사</button>
+<button class="opt-btn" data-value="llc" onclick="selectOpt(this)">유한회사</button>
+</div>
+</div>
+<div class="form-group">
+<label>자산 규모 <span class="required">*</span></label>
+<div class="opt-group" data-field="pf-asset">
+<button class="opt-btn" data-value="under100b" onclick="selectOpt(this)">1천억 미만</button>
+<button class="opt-btn" data-value="100b-2t" onclick="selectOpt(this)">1천억 ~ 2조</button>
+<button class="opt-btn" data-value="over2t" onclick="selectOpt(this)">2조 이상</button>
+</div>
+</div>
+<div class="form-group">
+<label>결산월 <span class="required">*</span></label>
+<div class="opt-group" data-field="pf-fy">
+<button class="opt-btn selected" data-value="12" onclick="selectOpt(this)">12월</button>
+<button class="opt-btn" data-value="3" onclick="selectOpt(this)">3월</button>
+<button class="opt-btn" data-value="6" onclick="selectOpt(this)">6월</button>
+<button class="opt-btn" data-value="9" onclick="selectOpt(this)">9월</button>
+</div>
+</div>
+<div class="form-group">
+<label>감사기구 유형 <span class="required">*</span></label>
+<div class="opt-group" data-field="pf-auditor-type">
+<button class="opt-btn" data-value="auditor" onclick="selectOpt(this)">감사</button>
+<button class="opt-btn" data-value="committee" onclick="selectOpt(this)">감사위원회</button>
+</div>
+</div>
+</div>
+
+<h3>추가 항목</h3>
+<div class="form-grid">
+<div class="form-group">
+<label>대규모기업집단 소속 여부</label>
+<div class="opt-group" data-field="pf-conglomerate">
+<button class="opt-btn selected" data-value="no" onclick="selectOpt(this)">비소속</button>
+<button class="opt-btn" data-value="yes" onclick="selectOpt(this)">소속</button>
+</div>
+</div>
+<div class="form-group">
+<label>지주회사 여부</label>
+<div class="opt-group" data-field="pf-holding">
+<button class="opt-btn selected" data-value="none" onclick="selectOpt(this)">해당없음</button>
+<button class="opt-btn" data-value="holding" onclick="selectOpt(this)">지주회사</button>
+<button class="opt-btn" data-value="sub" onclick="selectOpt(this)">자회사</button>
+<button class="opt-btn" data-value="grandsub" onclick="selectOpt(this)">손자회사</button>
+</div>
+</div>
+<div class="form-group">
+<label>금융회사 여부</label>
+<div class="opt-group" data-field="pf-finance">
+<button class="opt-btn selected" data-value="no" onclick="selectOpt(this)">비금융회사</button>
+<button class="opt-btn" data-value="yes" onclick="selectOpt(this)">금융회사</button>
+</div>
+</div>
+<div class="form-group">
+<label>등록 외국법인 여부</label>
+<div class="opt-group" data-field="pf-foreign">
+<button class="opt-btn selected" data-value="domestic" onclick="selectOpt(this)">국내법인</button>
+<button class="opt-btn" data-value="foreign" onclick="selectOpt(this)">외국법인(국내등록)</button>
+</div>
+</div>
+</div>
+
+<h3>일정 기준일</h3>
+<div class="form-grid">
+<div class="form-group">
+<label>결산일 <span class="required">*</span></label>
+<input type="date" id="pf-fy-date">
+<div class="form-hint">사업연도 말일 (예: 2025-12-31)</div>
+</div>
+<div class="form-group">
+<label>정기주총 예정일 <span class="required">*</span></label>
+<input type="date" id="pf-agm-date">
+<div class="form-hint">이사회 결의 후 확정 (예: 2026-03-27)</div>
+</div>
+</div>
+
+<div class="btn-group">
+<button class="btn btn-primary" onclick="goStep(2)">다음: 안건 설정 &rarr;</button>
+</div>
+</div>
+</div>
+
+<!-- ═══ STEP 2: AGENDA ═══ -->
+<div class="panel" id="panel-2">
+<div class="card">
+<h2>주총 안건 설정</h2>
+<p style="color:var(--text2);font-size:13px;margin-bottom:16px">이번 정기주총에서 상정할 안건을 선택하세요. 선택한 안건에 따라 추가 업무와 후속 절차가 자동으로 반영됩니다.</p>
+
+<h3>기본 안건 (거의 모든 정기주총에 포함)</h3>
+<div class="checkbox-group" id="agenda-basic"></div>
+
+<h3>주요 특별 안건</h3>
+<div class="checkbox-group" id="agenda-special"></div>
+
+<h3>기타 안건</h3>
+<div class="checkbox-group" id="agenda-others"></div>
+
+<div class="btn-group">
+<button class="btn btn-outline" onclick="goStep(1)">&larr; 이전</button>
+<button class="btn btn-primary" onclick="generateTimeline()">일정 생성 &rarr;</button>
+</div>
+</div>
+</div>
+
+<!-- ═══ STEP 3: TIMELINE ═══ -->
+<div class="panel" id="panel-3">
+<div class="card">
+<h2>정기주총 업무 타임라인</h2>
+<div class="summary-grid" id="profile-summary"></div>
+<div class="stat-bar" id="stat-bar"></div>
+</div>
+
+<div class="tl-controls">
+<div class="tl-filter" id="tl-filter"></div>
+</div>
+
+<div class="timeline" id="timeline"></div>
+
+<div class="btn-group" style="margin-top:20px">
+<button class="btn btn-outline" onclick="goStep(2)">&larr; 안건 수정</button>
+<button class="btn btn-outline" onclick="window.print()">인쇄 / PDF</button>
+</div>
+</div>
+</div>
+
+<!-- ═══ MODAL ═══ -->
+<div class="modal-overlay" id="proc-modal" onclick="if(event.target===this)closeModal()">
+<div class="modal">
+<div class="modal-header">
+<h3 id="modal-title">세부 프로세스</h3>
+<button class="modal-close" onclick="closeModal()">&times;</button>
+</div>
+<div class="modal-body" id="modal-body"></div>
+</div>
+</div>
+
+<button class="print-btn" onclick="window.print()" title="인쇄">&#128424;</button>
+
+
+<script src="data/agendas.js"></script>
+<script src="data/process.js"></script>
+<script src="data/tasks.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
