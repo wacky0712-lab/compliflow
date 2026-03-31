@@ -254,6 +254,51 @@
 </div>
 </div>
 
+<h3>소집 일정 단축 옵션</h3>
+<div class="form-grid">
+
+<!-- 주총 소집기간 (AGM/EGM에만 표시) -->
+<div class="form-group" id="gsm-schedule-group" style="display:none">
+  <label>주총 소집기간</label>
+  <div class="opt-group" data-field="pf-gsm-schedule">
+    <button class="opt-btn selected" data-value="normal"
+      onclick="selectOpt(this);updateScheduleHints()">법정 기간 (2주)</button>
+    <button class="opt-btn" data-value="short_charter"
+      onclick="selectOpt(this);updateScheduleHints()">정관 단축 (10일)</button>
+    <button class="opt-btn" data-value="unanimous"
+      onclick="selectOpt(this);updateScheduleHints()">주주 전원 동의</button>
+  </div>
+  <div id="gsm-schedule-hint" class="form-hint" style="line-height:1.5">
+    법정 소집통지 기간: 주총일 2주 전 (상법 §363①)
+  </div>
+</div>
+
+<!-- 이사회 소집기간 (항상 표시) -->
+<div class="form-group" id="bod-schedule-group">
+  <label>이사회 소집기간</label>
+  <div class="opt-group" data-field="pf-bod-schedule">
+    <button class="opt-btn selected" data-value="normal"
+      onclick="selectOpt(this);updateScheduleHints()">법정 기간 (7일)</button>
+    <button class="opt-btn" data-value="short_charter"
+      onclick="selectOpt(this);updateScheduleHints()">정관 단축</button>
+    <button class="opt-btn" data-value="unanimous"
+      onclick="selectOpt(this);updateScheduleHints()">이사 전원 동의</button>
+  </div>
+  <div id="bod-charter-days-row" style="display:none;margin-top:8px;display:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+      <span style="font-size:12px;color:var(--text2)">정관상 통지기간</span>
+      <input type="number" id="pf-bod-charter-days" min="1" max="6" value="3"
+        style="width:56px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;text-align:center">
+      <span style="font-size:12px;color:var(--text2)">일 전</span>
+    </div>
+  </div>
+  <div id="bod-schedule-hint" class="form-hint" style="line-height:1.5">
+    법정 소집통지 기간: 7일 전 (상법 §390②)
+  </div>
+</div>
+
+</div>
+
 <div class="btn-group">
 <button class="btn btn-primary" onclick="goStep(2)">다음: 안건 설정 &rarr;</button>
 </div>

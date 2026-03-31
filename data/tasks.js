@@ -35,28 +35,66 @@ function buildTasks(pf, agendas) {
   const hasBodSelfDeal = agendas.includes('bod_self_deal');
   const hasBodContract = agendas.includes('bod_contract');
 
+  // 소집 일정 단축 옵션
+  // gsmSchedule: 'normal'(2주) | 'short_charter'(10일, 정관) | 'unanimous'(전원동의)
+  // bodSchedule: 'normal'(7일) | 'short_charter'(정관X일) | 'unanimous'(전원동의)
+  const gsmSchedule    = pf.gsmSchedule || 'normal';
+  const bodSchedule    = pf.bodSchedule || 'normal';
+  const bodCharterDays = pf.bodCharterDays || 3;
+
+  const gsmUnanimous   = gsmSchedule === 'unanimous';
+  const gsmShort       = gsmSchedule === 'short_charter';
+  const bodUnanimous   = bodSchedule === 'unanimous';
+  const bodShort       = bodSchedule === 'short_charter';
+
+  // 주총 소집통지 기간: 정상=14일, 정관단축=10일, 전원동의=1일(형식적 확인)
+  const gsmNoticeOffset = gsmUnanimous ? -1 : gsmShort ? -10 : -14;
+  // 소집결정 이사회: 전원동의=7일전으로 단축, 정관단축=28일전, 정상=42일전
+  const gsmBodOffset    = gsmUnanimous ? -7 : gsmShort ? -28 : -42;
+  // 서류 비치: 전원동의=3일전(법적 의무는 유지, 실무 단축), 정상=7일전
+  const gsmDocsOffset   = gsmUnanimous ? -3 : -7;
+  // 이사회 소집통지: 정상=7일, 정관단축=정관기간, 전원동의=0(당일 확인)
+  const bodNoticeOffset = bodUnanimous ? 0 : bodShort ? -bodCharterDays : -7;
+
   const T = [];
 
   // ════════════════════════════════════════
   // BOD 전용 타임라인
   // ════════════════════════════════════════
 
+  // 이사회 소집통지 — bodSchedule에 따라 오프셋·제목·내용 변화
+  const bodNoticeTitle   = bodUnanimous ? '이사 전원 동의 확인 (소집절차 생략)' : '이사회 소집통지 발송';
+  const bodNoticeContent = bodUnanimous
+    ? '이사 전원의 동의로 소집절차 생략, 즉시 개최 확인 (상법 §390③)'
+    : bodShort
+      ? `정관상 단축 기간(${bodCharterDays}일 전) 이사회 소집통지 발송`
+      : '각 이사 및 감사에게 이사회 소집 통지 발송 (7일 전)';
+  const bodNoticeLaw     = bodUnanimous
+    ? '상법 제390조 제3항 (이사 전원 동의 시 소집절차 생략)'
+    : bodShort
+      ? '상법 제390조 제2항 단서 (정관으로 단축)'
+      : '상법 제390조 제2항 (7일 전 소집통지)';
+  const bodNoticeDetail  = bodUnanimous
+    ? '이사 전원이 서면 또는 구두로 동의 확인. 동의 사실을 이사회 의사록에 기재하거나 별도 동의서 징구 보관 권장. 감사에게도 회의 사실 통지 필요(상법 §391조의2).'
+    : bodShort
+      ? `정관에서 소집통지 기간을 ${bodCharterDays}일로 단축한 경우 적용. 각 이사·감사에게 서면 또는 전자 통지. 정관 해당 조항 확인 필수.`
+      : '이사회는 각 이사에게 회일 1주 전(7일)에 소집 통지. 방법: 서면, 전자(정관 허용 시). 의장은 대표이사(원칙). 감사도 이사회 참석 가능(상법 제391조의2).';
+
   T.push({
-    id:'tbod01', dBase:'D', dOffset:-7,
-    title:'이사회 소집통지 발송',
-    content:'각 이사 및 감사에게 이사회 소집 통지 발송',
-    law:'상법 제390조 (이사회의 소집)',
+    id:'tbod01', dBase:'D', dOffset: bodNoticeOffset,
+    title:   bodNoticeTitle,
+    content: bodNoticeContent,
+    law:     bodNoticeLaw,
     category:'이사회',
     tags:['필수'],
-    detail:'이사회는 각 이사에게 회일 1주 전(7일)에 소집 통지. 방법: 서면, 전자(정관 허용 시). 의장은 대표이사(원칙). 감사도 이사회 참석 가능(상법 제391조의2).',
+    detail:  bodNoticeDetail,
     filing:'',
-    exception:'정관으로 소집통지 기간 단축 가능. 이사 전원 동의 시 소집절차 생략 및 즉시 개최 가능.',
+    exception: bodUnanimous
+      ? '이사 전원 동의 서면을 이사회 의사록에 첨부하거나 별도 보관하면 법적 안정성이 높아집니다.'
+      : bodShort
+        ? '정관상 단축 기간이 명확히 규정되어 있는지 사전 확인 필수. 미규정 시 법정 7일 기간 적용.'
+        : '정관으로 소집통지 기간 단축 가능. 이사 전원 동의 시 소집절차 생략 및 즉시 개최 가능.',
     show: isBOD,
-    exceptionToggle:{
-      id:'ex_bod_short_notice',
-      label:'소집통지 기간 단축 (정관 규정 시)',
-      effect:'정관으로 7일 미만으로 단축한 경우 또는 전원동의 개최',
-    }
   });
 
   T.push({
@@ -252,15 +290,20 @@ function buildTasks(pf, agendas) {
   // ════════════════════════════════════════
 
   T.push({
-    id:'t10', dBase:'D', dOffset:-42,
+    id:'t10', dBase:'D', dOffset: gsmBodOffset,
     title:'주총 소집 결정 이사회',
-    content:`${isEGM ? '임시주총' : '정기주총'} 일시, 장소, 목적사항(안건) 확정`,
+    content:`${isEGM ? '임시주총' : '정기주총'} 일시, 장소, 목적사항(안건) 확정${gsmUnanimous ? ' (전원동의 예정)' : ''}`,
     law:'상법 제362조 (이사회의 주총소집 결정)',
     category:'주총준비',
     tags:['필수'],
-    detail:'이사회에서 결의할 사항: ① 주총 일시·장소, ② 의안(목적사항), ③ 전자투표 도입 여부, ④ 서면투표 도입 여부, ⑤ 의결권대리행사 권유 여부. 사외이사 후보추천위원회 운영 필요 시 이사회 전에 위원회 개최.',
+    detail:'이사회에서 결의할 사항: ① 주총 일시·장소, ② 의안(목적사항), ③ 전자투표 도입 여부, ④ 서면투표 도입 여부, ⑤ 의결권대리행사 권유 여부.'
+      + (gsmUnanimous ? ' 주주 전원 동의를 통해 소집통지를 생략할 경우, 이 이사회에서 전원동의 방침을 확인하고 동의서 징구 절차도 병행.' : ''),
     filing: isListed ? '주요경영사항 수시공시 (주주총회 소집 결의)' : '',
-    exception:'',
+    exception: gsmUnanimous
+      ? '주주 전원 동의(상법 §363④) 예정이므로 소집결정 이사회를 주총 직전 7일 전으로 단축. 전원 동의서 징구 일정과 연계.'
+      : gsmShort
+        ? '정관 단축(10일) 적용으로 소집결정 이사회를 주총 28일 전으로 조정.'
+        : '',
     show: isGSM,
   });
 
@@ -278,7 +321,7 @@ function buildTasks(pf, agendas) {
   });
 
   T.push({
-    id:'t12', dBase:'D', dOffset:-28,
+    id:'t12', dBase:'D', dOffset: gsmUnanimous ? gsmNoticeOffset : -28,
     title:'의결권대리행사 권유 (위임장 권유)',
     content:'상장사 의무: 의결권대리행사 권유 참고서류 제출',
     law:'자본시장법 제152조, 동법 시행령 제160조',
@@ -286,7 +329,9 @@ function buildTasks(pf, agendas) {
     tags:['상장','공시'],
     detail:'상장사는 주총 소집통지일까지 의결권대리행사 권유 참고서류를 DART에 제출·비치. 전자투표 도입 시 의결권대리행사 권유 의무 면제 가능.',
     filing:'DART 제출 (의결권대리행사 권유 참고서류)',
-    exception:'전자투표를 도입하는 경우 의결권대리행사 권유 의무 면제 가능',
+    exception: gsmUnanimous
+      ? '주주 전원 동의 시에도 상장사 의결권대리행사 권유 의무는 별도 존재. 실무상 전원동의 방식과 병행하거나 전자투표로 대체 권장.'
+      : '전자투표를 도입하는 경우 의결권대리행사 권유 의무 면제 가능',
     show: isGSM && isListed,
     exceptionToggle:{
       id:'ex_evote',
@@ -295,24 +340,39 @@ function buildTasks(pf, agendas) {
     }
   });
 
+  // 주총 소집통지 — gsmSchedule에 따라 오프셋·제목·내용 변화
+  const gsmNoticeTitle   = gsmUnanimous ? '주주 전원 동의서 수령 / 소집통지 생략' : '주총 소집통지 발송';
+  const gsmNoticeContent = gsmUnanimous
+    ? '주주 전원의 서면 동의 수령 — 소집통지 절차 생략 (상법 §363④)'
+    : gsmShort
+      ? `정관상 단축 기간(10일 전) 소집통지 발송 (상법 §363① 단서)`
+      : `각 주주에게 서면/전자 소집통지 발송 (${isEGM ? '임시주총' : '정기주총'}, 2주 전)`;
+  const gsmNoticeLaw     = gsmUnanimous
+    ? '상법 제363조 제4항 (주주 전원 동의 시 소집통지 생략)'
+    : gsmShort
+      ? '상법 제363조 제1항 단서 (정관 단축 — 비상장 자본금 10억 미만)'
+      : '상법 제363조 제1항 (주총일 2주 전 소집통지)';
+  const gsmNoticeDetail  = gsmUnanimous
+    ? '주주 전원으로부터 서면 동의서를 징구하여 소집통지를 생략. 동의서에는 주총 일시·장소·목적사항 기재. 동의서 원본은 10년 보관 권장. 주주 전원 동의이므로 발행주식 100% 대상(자기주식 제외). ※ 상법 §363④의 "주주 전원"은 의결권 있는 주주 전원을 의미.'
+    : gsmShort
+      ? '정관에 "2주" 대신 "10일"로 단축 규정이 있어야 적용 가능. 비상장사이고 자본금 10억 미만인 경우만 허용. 통지 내용(일시·장소·의안 요령)은 동일.'
+      : '통지 내용: 일시, 장소, 목적사항(의안 요령). 통지 방법: 등기우편(원칙), 정관에 따라 전자적 방법 병행 가능. 발행주식총수의 1% 이하 소주주는 정관 규정에 따라 통지 생략 가능(상법 §363③).';
+
   T.push({
-    id:'t13', dBase:'D', dOffset:-14,
-    title:'주총 소집통지 발송',
-    content:`각 주주에게 서면/전자 소집통지 발송 (${isEGM ? '임시주총' : '정기주총'})`,
-    law:'상법 제363조 (소집의 통지)',
+    id:'t13', dBase:'D', dOffset: gsmNoticeOffset,
+    title:   gsmNoticeTitle,
+    content: gsmNoticeContent,
+    law:     gsmNoticeLaw,
     category:'주총준비',
     tags:['필수'],
-    detail:'통지 내용: 일시, 장소, 목적사항(의안 요령). 통지 방법: 등기우편(원칙), 정관에 따라 전자적 방법 병행 가능. 발행주식총수의 1% 이하 소유 주주에게는 정관 규정에 따라 통지 생략 가능(상법 제363조 제3항).',
-    filing: isListed ? '소집통지 공고 (관보 또는 전자공시)' : '',
-    exception:'',
+    detail:  gsmNoticeDetail,
+    filing: gsmUnanimous ? '' : (isListed ? '소집통지 공고 (관보 또는 전자공시)' : ''),
+    exception: gsmUnanimous
+      ? '소집통지 생략 적용 요건: ① 발행주식 100%(의결권 있는 주주) 전원 서면 동의, ② 동의서에 목적사항 명시. 주주 전원 동의이므로 정족수 충족 여부와 별도로 유효성 확인 필요.'
+      : gsmShort
+        ? '비상장 자본금 10억 미만 + 정관에 10일 기간 명시 시에만 적용 가능.'
+        : '',
     show: isGSM,
-    exceptionToggle:{
-      id:'ex_short_notice',
-      label:'소집통지 기간 단축 (10일 전)',
-      effect:'비상장사, 자본금 10억 미만: 정관에 10일로 단축 가능 (상법 제363조 제1항 단서). 후행 일정이 앞당겨집니다.',
-      shortDays:4,
-      condition:!isListed,
-    }
   });
 
   T.push({
@@ -329,15 +389,18 @@ function buildTasks(pf, agendas) {
   });
 
   T.push({
-    id:'t15', dBase:'D', dOffset:-7,
-    title:`재무제표·영업보고서·감사보고서 비치`,
+    id:'t15', dBase:'D', dOffset: gsmDocsOffset,
+    title:'재무제표·영업보고서·감사보고서 비치',
     content:'주총 1주 전부터 본점에 5년간, 지점에 3년간 비치',
     law:'상법 제448조 (재무제표등의 비치·공시)',
     category:'주총준비',
     tags:['필수'],
-    detail:'비치 서류: ① 재무제표(B/S, P/L, 이익잉여금처분계산서 등), ② 영업보고서, ③ 감사보고서. 주주와 채권자는 열람 가능.',
+    detail:'비치 서류: ① 재무제표(B/S, P/L, 이익잉여금처분계산서 등), ② 영업보고서, ③ 감사보고서. 주주와 채권자는 열람 가능.'
+      + (gsmUnanimous ? ' ※ 주주 전원 동의로 소집통지를 생략하더라도 서류비치 의무(상법 §448)는 별도 적용. 실무상 주총 3일 전까지는 비치 완료 권장.' : ''),
     filing:'',
-    exception:'',
+    exception: gsmUnanimous
+      ? '상법 §448 서류비치 의무는 소집통지 생략(§363④)과 무관하게 적용. 법문상 "주총 1주 전"이 원칙이나 전원동의 단기 개최 시 실무상 3일 전 비치로 갈음하는 경우 있음 — 법적 리스크 감안 필요.'
+      : '',
     show: isGSM,
   });
 

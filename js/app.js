@@ -205,6 +205,8 @@ function getMeetingType() {
 function updateMeetingTypeUI() {
   const mt = getMeetingType();
   const meta = MEETING_TYPE_META[mt];
+  const isBOD = mt === 'bod';
+  const isGSM = !isBOD;
 
   // Hint text
   document.getElementById('meeting-type-hint').textContent = meta.hint;
@@ -212,20 +214,60 @@ function updateMeetingTypeUI() {
   // Date labels
   document.getElementById('meeting-date-label').innerHTML = `${meta.dateLabel} <span class="required">*</span>`;
   document.getElementById('meeting-date-hint').textContent = meta.dateHint;
-  document.getElementById('fy-date-label').innerHTML = mt === 'bod'
+  document.getElementById('fy-date-label').innerHTML = isBOD
     ? `${meta.fyLabel}`
     : `${meta.fyLabel} <span class="required">*</span>`;
   document.getElementById('fy-date-hint').textContent = meta.fyHint;
 
+  // Schedule option group visibility
+  document.getElementById('gsm-schedule-group').style.display = isGSM ? '' : 'none';
+  // BOD schedule group always visible
+
+  // Reset GSM schedule to 'normal' when switching to BOD (and vice versa keeps state)
+  if (isBOD) {
+    const gsmGroup = document.querySelector('.opt-group[data-field="pf-gsm-schedule"]');
+    if (gsmGroup) {
+      gsmGroup.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+      gsmGroup.querySelector('[data-value="normal"]').classList.add('selected');
+    }
+  }
+
+  updateScheduleHints();
+
   // Agenda section visibility
-  const isBOD = mt === 'bod';
-  const isGSM = !isBOD;
   document.getElementById('agenda-gsm-ordinary-section').style.display = isGSM ? '' : 'none';
   document.getElementById('agenda-gsm-special-section').style.display  = isGSM ? '' : 'none';
-  // BOD section: always visible
 
-  // Re-render agenda to handle agmOnly items
   initAgenda();
+}
+
+// 소집일정 옵션별 안내 문구 및 UI 업데이트
+const SCHEDULE_HINTS = {
+  gsm: {
+    normal:        '법정 소집통지 기간: 주총일 2주 전 (상법 §363①). 상장사는 자본시장법에 의해 2주 단축 불가.',
+    short_charter: '정관으로 10일 전으로 단축 (상법 §363① 단서). 비상장 + 자본금 10억 미만 회사에만 허용.',
+    unanimous:     '주주 전원 동의 시 소집통지 생략 가능 (상법 §363④). 전원 동의서 서면 징구 필요. 소집결정 이사회와 서류비치 의무는 별도 이행 권장.',
+  },
+  bod: {
+    normal:        '법정 소집통지 기간: 7일 전 (상법 §390②). 각 이사 및 감사에게 서면·전자 통지.',
+    short_charter: '정관으로 7일 미만으로 단축 가능 (상법 §390② 단서). 회사 규모·상장 여부 무관하게 허용. 아래에 정관상 기간을 입력하세요.',
+    unanimous:     '이사 전원의 동의 시 소집절차(통지) 생략 후 즉시 개최 가능 (상법 §390③). 동의 확인 서면 보관 권장.',
+  },
+};
+
+function updateScheduleHints() {
+  const gsmSched = getOptValue('pf-gsm-schedule') || 'normal';
+  const bodSched = getOptValue('pf-bod-schedule') || 'normal';
+
+  const gsmHintEl = document.getElementById('gsm-schedule-hint');
+  if (gsmHintEl) gsmHintEl.textContent = SCHEDULE_HINTS.gsm[gsmSched] || '';
+
+  const bodHintEl = document.getElementById('bod-schedule-hint');
+  if (bodHintEl) bodHintEl.textContent = SCHEDULE_HINTS.bod[bodSched] || '';
+
+  // 정관 단축 일수 입력란 표시/숨김
+  const bodCharterRow = document.getElementById('bod-charter-days-row');
+  if (bodCharterRow) bodCharterRow.style.display = bodSched === 'short_charter' ? 'block' : 'none';
 }
 
 
@@ -354,20 +396,24 @@ function getOptValue(field) {
 function getProfile() {
   const mt = getMeetingType();
   const fyDate = document.getElementById('pf-fy-date').value;
+  const bodCharterDaysEl = document.getElementById('pf-bod-charter-days');
   return {
-    meetingType: mt,
-    listing:     getOptValue('pf-listing'),
-    audit:       getOptValue('pf-audit'),
-    type:        getOptValue('pf-type'),
-    asset:       getOptValue('pf-asset'),
-    fy:          getOptValue('pf-fy'),
-    auditorType: getOptValue('pf-auditor-type'),
-    conglomerate:getOptValue('pf-conglomerate'),
-    holding:     getOptValue('pf-holding'),
-    finance:     getOptValue('pf-finance'),
-    foreign:     getOptValue('pf-foreign'),
-    fyDate:      fyDate || document.getElementById('pf-agm-date').value, // fallback for BOD mode
-    agmDate:     document.getElementById('pf-agm-date').value,
+    meetingType:     mt,
+    listing:         getOptValue('pf-listing'),
+    audit:           getOptValue('pf-audit'),
+    type:            getOptValue('pf-type'),
+    asset:           getOptValue('pf-asset'),
+    fy:              getOptValue('pf-fy'),
+    auditorType:     getOptValue('pf-auditor-type'),
+    conglomerate:    getOptValue('pf-conglomerate'),
+    holding:         getOptValue('pf-holding'),
+    finance:         getOptValue('pf-finance'),
+    foreign:         getOptValue('pf-foreign'),
+    fyDate:          fyDate || document.getElementById('pf-agm-date').value,
+    agmDate:         document.getElementById('pf-agm-date').value,
+    gsmSchedule:     getOptValue('pf-gsm-schedule') || 'normal',
+    bodSchedule:     getOptValue('pf-bod-schedule') || 'normal',
+    bodCharterDays:  bodCharterDaysEl ? (parseInt(bodCharterDaysEl.value) || 3) : 3,
   };
 }
 
@@ -406,6 +452,8 @@ function renderTimeline() {
     { l:'감사기구',   v: labels.auditorType[pf.auditorType] || '-' },
     { l:'결산일',     v: pf.fyDate || '-' },
     { l: mt === 'bod' ? '이사회 예정일' : mt === 'egm' ? '임시주총 예정일' : '주총 예정일', v: pf.agmDate },
+    ...(mt !== 'bod' ? [{ l:'주총 소집기간', v: { normal:'법정 2주', short_charter:'정관 단축 10일', unanimous:'주주 전원 동의' }[pf.gsmSchedule] || '-' }] : []),
+    { l:'이사회 소집기간', v: { normal:'법정 7일', short_charter:`정관 단축 ${pf.bodCharterDays}일`, unanimous:'이사 전원 동의' }[pf.bodSchedule] || '-' },
   ];
 
   document.getElementById('profile-summary').innerHTML = summaryItems
@@ -814,5 +862,6 @@ is_new 판단 기준: 아래 내장 데이터에 이미 포함된 사항이면 f
     document.getElementById('api-key-input').value = savedKey;
   }
 
+  updateScheduleHints();
   initAgenda();
 })();
